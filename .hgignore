@@ -1,0 +1,9 @@
+syntax: glob
+
+build
+.o
+*.pyc
+*.a
+*~
+
+
