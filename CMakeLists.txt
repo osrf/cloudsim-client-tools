@@ -16,7 +16,6 @@ message(STATUS "${PROJECT_NAME} version ${VERSION_FULL}")
 add_executable(hello hello.cc)
 install(TARGETS hello RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 install(PROGRAMS tc/init_tc.py tc/configure_tc.py DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
-#install(TARGETS ./configure_tc.py RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin) 
 
 ########################################
 # Package Creation: 
