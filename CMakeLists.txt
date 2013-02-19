@@ -18,9 +18,11 @@ install(TARGETS hello RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 install(PROGRAMS tc/init_tc.py tc/configure_tc.py DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 
 # Install Traffic shaper utilities:
-# 1. ts_sniffer: Sniffer to measure latency between router and COU
-# 2. ts_controller: open loop controller to adjust latency to a target values  
-install(PROGRAMS tc/ts_sniffer.py tc/ts_controller.py DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+# ts_sniffer: Sniffer to measure latency between router and COU
+# ts_controller: Open loop controller to adjust latency to a target values  
+# pid: Module that contains a PID template that can be used by the controller
+install(PROGRAMS ts/ts_sniffer.py ts/ts_controller.py DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+install(PROGRAMS ts/cloudsim/pid.py ts/cloudsim/__init__.py DESTINATION /usr/lib/python2.7/cloudsim)
 
 ########################################
 # Package Creation: 
