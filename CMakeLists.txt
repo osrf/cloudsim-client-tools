@@ -6,7 +6,7 @@ project(cloudsim-client-tools)
 string(TOLOWER ${PROJECT_NAME} PROJECT_NAME_LOWER)
 set(MAJOR_VERSION 0)
 set(MINOR_VERSION 9)
-set(PATCH_VERSION 1)
+set(PATCH_VERSION 2)
 
 set(VERSION ${MAJOR_VERSION}.${MINOR_VERSION})
 set(VERSION_FULL ${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION})
@@ -16,6 +16,11 @@ message(STATUS "${PROJECT_NAME} version ${VERSION_FULL}")
 add_executable(hello hello.cc)
 install(TARGETS hello RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 install(PROGRAMS tc/init_tc.py tc/configure_tc.py DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+
+# Install Traffic shaper utilities:
+# 1. ts_sniffer: Sniffer to measure latency between router and COU
+# 2. ts_controller: open loop controller to adjust latency to a target values  
+install(PROGRAMS tc/ts_sniffer.py tc/ts_controller.py DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 
 ########################################
 # Package Creation: 
