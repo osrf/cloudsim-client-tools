@@ -4,7 +4,7 @@
 # this value is updated and the result is saved in a redis database with a specific key.
 
 import sys
-import daemon
+#import daemon
 import time
 import redis
 import subprocess
@@ -43,15 +43,15 @@ def get_ping_time(_host):
 
 def runDaemon(_host):
     r = redis.Redis('localhost')
-    with daemon.DaemonContext(stdout=sys.stdout, stderr=sys.stdout):
-        while True:
-            currentLatency = get_ping_time(_host)
-            print 'Latency: ', str(currentLatency)
-            time.sleep(1)
-            if currentLatency >= 0:
-                r.set(CURRENT_LATENCY_KEY, currentLatency)                    
-            else:
-                r.set(CURRENT_LATENCY_KEY, UNREACHABLE)
+    #with daemon.DaemonContext(stdout=sys.stdout, stderr=sys.stdout):
+    while True:
+        currentLatency = get_ping_time(_host)
+        print 'Latency: ', str(currentLatency)
+        time.sleep(1)
+        if currentLatency >= 0:
+            r.set(CURRENT_LATENCY_KEY, currentLatency)                    
+        else:
+            r.set(CURRENT_LATENCY_KEY, UNREACHABLE)
     
 if __name__ == "__main__":
     host = parse_args(sys.argv)

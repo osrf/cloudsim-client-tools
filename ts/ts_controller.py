@@ -6,11 +6,11 @@
 # amount of latency every cycle.
 
 import sys
-import daemon
+#import daemon
 import time
 import redis
 import subprocess
-import pid
+from cloudsim import pid
 import string
 
 class TS_Controller:
@@ -86,11 +86,11 @@ def parse_args(argv):
     return dev, typec, freq 
 
 def runDaemon(_dev, _typec, _freq):
-    with daemon.DaemonContext(stdout=sys.stdout, stderr=sys.stdout):
-        ts = TS_Controller(_dev,_typec)
-        while True:
-            ts.update()
-            time.sleep(1.0 / _freq)
+    #with daemon.DaemonContext(stdout=sys.stdout, stderr=sys.stdout):
+    ts = TS_Controller(_dev,_typec)
+    while True:
+        ts.update()
+        time.sleep(1.0 / _freq)
 
 if __name__ == "__main__":
     dev, typec, freq = parse_args(sys.argv)

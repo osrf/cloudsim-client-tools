@@ -23,6 +23,7 @@ install(PROGRAMS tc/init_tc.py tc/configure_tc.py DESTINATION ${CMAKE_INSTALL_PR
 # pid: Module that contains a PID template that can be used by the controller
 install(PROGRAMS ts/ts_sniffer.py ts/ts_controller.py DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 install(PROGRAMS ts/cloudsim/pid.py ts/cloudsim/__init__.py DESTINATION /usr/lib/python2.7/cloudsim)
+install(PROGRAMS ts/conf/ts_sniffer_outbound.conf ts/conf/ts_controller_outbound.conf ts/conf/ts_controller_inbound.conf  DESTINATION /etc/init)
 
 ########################################
 # Package Creation: 
