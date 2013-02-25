@@ -31,6 +31,13 @@ class TS_Controller:
         self.r = redis.Redis('localhost')
         self.current = 0.0
         self.pid = pid.PID('TS',0, 1, 0, 100)
+	
+        cmd = "tc_init.py {dev}".format(dev = self.dev)
+        try: 
+           status = subprocess.check_call(cmd.split())
+        except subprocess.CalledProcessError as e:
+           print e.output
+           return
 
     def update(self):
         if self.r.exists(TS_Controller.TARGET_LATENCY_KEY) and self.r.exists(TS_Controller.CURRENT_LATENCY_KEY):
