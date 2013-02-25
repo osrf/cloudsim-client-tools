@@ -25,6 +25,10 @@ install(PROGRAMS ts/ts_sniffer.py ts/ts_controller.py DESTINATION ${CMAKE_INSTAL
 install(PROGRAMS ts/cloudsim/pid.py ts/cloudsim/__init__.py DESTINATION /usr/lib/python2.7/cloudsim)
 install(PROGRAMS ts/conf/ts_sniffer_outbound.conf ts/conf/ts_controller_outbound.conf ts/conf/ts_controller_inbound.conf  DESTINATION /etc/init)
 
+# Install VRC bandwidth utilities:
+# VRC_bandwidth: Count and logging bandwidth when a specific start/stop ros topic is received
+#install(PROGRAMS VRC_bandwidth/VRC_bandwidth.py DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+
 ########################################
 # Package Creation: 
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Infrastructure for launching robotics simulations in the cloud")
