@@ -32,7 +32,7 @@ class TS_Controller:
         self.current = 0.0
         self.pid = pid.PID('TS',0, 1, 0, 100)
 	
-        cmd = "tc_init.py {dev}".format(dev = self.dev)
+        cmd = "init_tc.py {dev}".format(dev = self.dev)
         try: 
            status = subprocess.check_call(cmd.split())
         except subprocess.CalledProcessError as e:
