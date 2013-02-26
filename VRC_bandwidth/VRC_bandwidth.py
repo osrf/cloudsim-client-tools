@@ -15,23 +15,20 @@ import os
 
 class BandwidthCount:
 
-    def __init__(self, _freq, _ip):
+    def __init__(self, _freq):
         REPLACELOG = True
         self.freq = _freq
-        self.ip = _ip
         rospy.init_node('VRC_bandwidth', anonymous=True)
 
         if REPLACELOG:
             self.logfile = 'bandwidth.log'
         else:
-            self.logfile = str(datetime.datetime.now())
-            self.logfile = 'bandwidth_' + self.logfile.replace(' ', '-') + '.log'
+            filename = str(datetime.datetime.now())
+            filename = 'bandwidth_' + filename.replace(' ', '-') + '.log'
+            self.logfile = filename
   
         rospy.Subscriber("state/start", String, self.startCounting)
         rospy.Subscriber("state/stop", String, self.stopCounting)
-
-        # flush all chains
-        self.runExternalCommand('sudo iptables -F')
 
         # delete all chains 
         self.runExternalCommand('sudo iptables -X')
@@ -52,18 +49,14 @@ class BandwidthCount:
 
     def runExternalCommand(self, cmd):
         try:
-            #print 'Running: ', cmd
             devnull = open('/dev/null', 'w')
             output = subprocess.check_output(cmd.split())
-            #print 'Output: ', output
             return output
         except subprocess.CalledProcessError as e:
             print e.output
             return -1
 
     def getBandwidthStats(self):
-        #print 'getBandwidthStats()'
-
         # Get inbound bandwidth
         cmd = 'sudo iptables -L Inbound -n -v -x'
         output = self.runExternalCommand(cmd)
@@ -77,16 +70,15 @@ class BandwidthCount:
         return inbound, outbound
 
     def resetCounting(self):
-        print 'resetCounting()'
         self.runExternalCommand('sudo iptables -Z')
 
     def startCounting(self, data):
         self.resetCounting()
-        rospy.loginfo('I heard the start signal')
+        # rospy.loginfo('I heard the start signal')
         self.timer = rospy.Timer(rospy.Duration(1.0 / self.freq), self.updateCounting)
 
     def stopCounting(self, data):
-        rospy.loginfo('I heard the stop signal')
+        # rospy.loginfo('I heard the stop signal')
         self.timer.shutdown()
 
     def updateCounting(self, data):
@@ -98,10 +90,10 @@ class BandwidthCount:
         #print 'logCounting()'
         f = open(self.logfile, 'a')
         #ToDo: timestamp from simulation time (subscribed?)
-        timestamp = time.time()
-        f.write(str(timestamp) + ' ' + str(_inbound) + ' ' + str(_outbound) + '\n')
+        timestamp = str(time.time())
+        f.write(timestamp + ' ' + str(_inbound) + ' ' + str(_outbound) + '\n')
         f.close()
 
 if __name__ == '__main__':
-    bandwidthCount = BandwidthCount(1.0, '0.0.0.0')
+    bandwidthCount = BandwidthCount(1.0)
 
