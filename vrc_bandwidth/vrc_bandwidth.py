@@ -15,7 +15,6 @@ import argparse
 import os
 import sys
 
-#import roslib; roslib.load_manifest('VRC_bandwidth')
 import rospy
 from std_msgs.msg import String
 
@@ -29,82 +28,84 @@ class BandwidthCount:
     START = 'state/start'
     STOP = 'state/stop'
 
-    def __init__(self, freq, dir, prefix, isincremental):
+    def __init__(self, freq, directory, prefix, is_incremental):
         """
         Constructor.
 
-        @param _freq: frequency of counting and logging (Hz.)
-        @type _freq: float
-        @param _dir: directory where the log file will be contained
-        @type _dir: string
-        @param _prefix: prefix of the log filename
-        @type _prefix: string
-        @param _isincremental: True if incremental logging is selected
-        @type _isincremental: boolean
+        @param freq: frequency of counting and logging (Hz.)
+        @type freq: float
+        @param directory: directory where the log file will be contained
+        @type directory: string
+        @param prefix: prefix of the log filename
+        @type prefix: string
+        @param isincremental: True if incremental logging is selected
+        @type isincremental: boolean
         """
         self.freq = freq
-        self.dir = dir
+        self.dir = directory
         self.prefix = prefix
-        self.isincremental = isincremental
+        self.is_incremental = is_incremental
 
         rospy.init_node('VRC_bandwidth', anonymous=True)
 
         # Create the name of the file containing the log
-        self.logFileName = self.prefix
-        if self.isincremental:
+        self.logfilename = self.prefix
+        if self.is_incremental:
             timestamp = str(datetime.datetime.now())
-            self.logFileName += '-' + timestamp.replace(' ', '-')
-        self.logFileName += '.log'
-        self.fullPathName = os.path.join(self.dir, self.logFileName)
+            self.logfilename += '-' + timestamp.replace(' ', '-')
+        self.logfilename += '.log'
+        self.fullpathname = os.path.join(self.dir, self.logfilename)
 
         # Remove any previous log session
-        if os.path.exists(self.fullPathName):
-            os.remove(self.fullPathName)
+        if os.path.exists(self.fullpathname):
+            os.remove(self.fullpathname)
 
         # Subscribe to the topics to start and stop the counting/logging
-        rospy.Subscriber(BandwidthCount.START, String, self.startCounting)
-        rospy.Subscriber(BandwidthCount.STOP, String, self.stopCounting)
+        rospy.Subscriber(BandwidthCount.START, String, self.start_counting)
+        rospy.Subscriber(BandwidthCount.STOP, String, self.stop_counting)
 
         try:
-            # flush all chains
+            # Flush all chains
             cmd = 'sudo iptables -F'
             subprocess.check_call(cmd.split())
-            # delete all chains
+            # Delete all chains
             cmd = 'sudo iptables -X'
             subprocess.check_call(cmd.split())
 
-            # create iptables chains
+            # Create iptables chains
             cmd = 'sudo iptables -N Inbound'
             subprocess.check_call(cmd.split())
             cmd = 'sudo iptables -N Outbound'
             subprocess.check_call(cmd.split())
 
-            # link with default traffic chains
+            # Link with default traffic chains
             cmd = 'sudo iptables -I INPUT -j Inbound'
             subprocess.check_call(cmd.split())
             cmd = 'sudo iptables -I OUTPUT -j Outbound'
             subprocess.check_call(cmd.split())
 
-            # select traffic to measure [tcp|udp|all]
+            # Select traffic to measure [tcp|udp|all]
             cmd = 'sudo iptables -A Inbound -p all'
             subprocess.check_call(cmd.split())
             cmd = 'sudo iptables -A Outbound -p all'
             subprocess.check_call(cmd.split())
-        except subprocess.CalledProcessError as e:
-            print e.output
+        except subprocess.CalledProcessError as ex:
+            print ex.output
             print 'iptables initialization commands failed'
             sys.exit(1)
 
         rospy.spin()
 
-    def resetCounting(self):
+    @staticmethod
+    def reset_counting():
         """
         Reset bandwidth stats.
         """
         cmd = 'sudo iptables -Z'
         subprocess.check_call(cmd.split())
 
-    def getBandwidthStats(self):
+    @staticmethod
+    def get_bandwidth_stats():
         """
         Returns the inbound and outbound packet size since the last reset.
 
@@ -113,17 +114,17 @@ class BandwidthCount:
         """
         # Get inbound bandwidth
         cmd = 'sudo iptables -L Inbound -n -v -x'
-        output = subprocess.check_output(cmd.split())
+        output = str(subprocess.check_output(cmd.split()))
         inbound = output.split('\n')[2].split()[1]
 
         # Get outbound bandwidth
         cmd = 'sudo iptables -L Outbound -n -v -x'
-        output = subprocess.check_output(cmd.split())
+        output = str(subprocess.check_output(cmd.split()))
         outbound = output.split('\n')[2].split()[1]
 
         return inbound, outbound
 
-    def logCounting(self, inbound, outbound):
+    def log_counting(self, inbound, outbound):
         """
         Log current bandwidth stats on disk.
 
@@ -132,25 +133,24 @@ class BandwidthCount:
         @param outbound: bytes sent since the last reset
         @type outbound: int
         """
-        with open(self.fullPathName, 'a') as f:
+        with open(self.fullpathname, 'a') as logf:
             #ToDo: timestamp from simulation time (subscribed?)
-            timestamp = str(time.time())
-            f.write(timestamp + ' ' + str(inbound) + ' ' +
-                    str(outbound) + '\n')
+            tstamp = str(time.time())
+            logf.write(tstamp + ' ' + str(inbound) + ' ' + str(outbound) + '\n')
 
-    def updateCounting(self, data):
+    def update_counting(self, data):
         """
         Callback periodically called by ROS to update the counting/logging.
 
         @param data Not used but necessary to match the rospy.Timer signature
         """
         try:
-            inbound, outbound = self.getBandwidthStats()
-            self.logCounting(inbound, outbound)
-        except subprocess.CalledProcessError as e:
-            print e.output
+            inbound, outbound = self.get_bandwidth_stats()
+            self.log_counting(inbound, outbound)
+        except subprocess.CalledProcessError as ex:
+            print ex.output
 
-    def startCounting(self, data):
+    def start_counting(self, data):
         """
         Reset the bandwidth stats and starts counting/logging periodically.
 
@@ -158,14 +158,14 @@ class BandwidthCount:
         """
         #rospy.loginfo('I heard the start signal')
         try:
-            self.resetCounting()
+            self.reset_counting()
             period = rospy.Duration(1.0 / self.freq)
-            self.timer = rospy.Timer(period, self.updateCounting)
-        except subprocess.CalledProcessError as e:
-            print e.output
+            self.timer = rospy.Timer(period, self.update_counting)
+        except subprocess.CalledProcessError as ex:
+            print ex.output
             sys.exit(1)
 
-    def stopCounting(self, data):
+    def stop_counting(self, data):
         """
         Stop the bandwidth counting and logging.
 
@@ -202,13 +202,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # Parse command line arguments
-    freq = args.frequency
-    dir = args.dir
-    if (not os.path.exists(dir)):
-        print 'Directory (', dir, ') does not exists'
+    arg_freq = args.frequency
+    arg_dir = args.dir
+    if (not os.path.exists(arg_dir)):
+        print 'Directory (', arg_dir, ') does not exists'
         sys.exit(1)
-    prefix = args.prefix
-    isincremental = args.incremental
+    arg_prefix = args.prefix
+    arg_is_incr = args.incremental
 
     # Run the node
-    bandwidthCount = BandwidthCount(freq, dir, prefix, isincremental)
+    bandwidth_count = BandwidthCount(arg_freq, arg_dir, arg_prefix, arg_is_incr)

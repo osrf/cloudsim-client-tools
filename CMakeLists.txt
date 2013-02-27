@@ -27,8 +27,8 @@ install(PROGRAMS ts/conf/ts_sniffer_outbound.conf ts/conf/ts_controller_outbound
 
 # Install VRC bandwidth utilities:
 # VRC_bandwidth: Count and logging bandwidth when a specific start/stop ros topic is received
-install(PROGRAMS VRC_bandwidth/VRC_bandwidth.py DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
-install(PROGRAMS VRC_bandwidth/conf/VRC_bandwidth.conf DESTINATION /etc/init)
+install(PROGRAMS vrc_bandwidth/vrc_bandwidth.py DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+install(PROGRAMS vrc_bandwidth/conf/vrc_bandwidth.conf DESTINATION /etc/init)
 
 ########################################
 # Package Creation: 
