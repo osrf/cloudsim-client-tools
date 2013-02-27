@@ -25,8 +25,9 @@ class BandwidthCount:
     """
 
     #  ROS topics to activate/deactivate the counting and log
-    START = 'state/start'
-    STOP = 'state/stop'
+    START = 'vrc/state/start'
+    STOP = 'vrc/state/stop'
+    TO_KB = 1.0 / 1000.0
 
     def __init__(self, freq, directory, prefix, is_incremental):
         """
@@ -112,15 +113,15 @@ class BandwidthCount:
         @raise subprocess.CalledProcessError: if the external commands
         (iptables) does not return 0
         """
-        # Get inbound bandwidth
+        # Get inbound bandwidth (KBytes)
         cmd = 'sudo iptables -L Inbound -n -v -x'
         output = str(subprocess.check_output(cmd.split()))
-        inbound = output.split('\n')[2].split()[1]
+        inbound = float(output.split('\n')[2].split()[1]) * BandwidthCount.TO_KB
 
-        # Get outbound bandwidth
+        # Get outbound bandwidth (Kbytes)
         cmd = 'sudo iptables -L Outbound -n -v -x'
         output = str(subprocess.check_output(cmd.split()))
-        outbound = output.split('\n')[2].split()[1]
+        outbound = float(output.split('\n')[2].split()[1]) * BandwidthCount.TO_KB
 
         return inbound, outbound
 
@@ -128,9 +129,9 @@ class BandwidthCount:
         """
         Log current bandwidth stats on disk.
 
-        @param inbound: bytes received since the last reset
+        @param inbound: KBytes received since the last reset
         @type inbound: int
-        @param outbound: bytes sent since the last reset
+        @param outbound: KBytes sent since the last reset
         @type outbound: int
         """
         with open(self.fullpathname, 'a') as logf:
