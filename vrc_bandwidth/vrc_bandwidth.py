@@ -200,9 +200,9 @@ if __name__ == '__main__':
                         default='bandwidth', help='prefix of the logfile')
     parser.add_argument('-i', '--incremental', action='store_true',
                         help='Do not override logs adding a timestamp suffix')
-    args = parser.parse_args()
 
     # Parse command line arguments
+    args = parser.parse_args()
     arg_freq = args.frequency
     arg_dir = args.dir
     if (not os.path.exists(arg_dir)):

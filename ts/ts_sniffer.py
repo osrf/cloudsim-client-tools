@@ -40,6 +40,17 @@ def get_ping_time(host, npackages):
 
 
 def runDaemon(freq, host, npackages, redis_label):
+    """
+    Run the latency sniffer periodically at a given frequency
+    @param freq: frequency of latency measurements (Hz.)
+    @type freq: float
+    @param host: target host
+    @type host: string
+    @param npackages: number of packages sent on each measurement
+    @type npackages: int
+    @param redis_label: label to be used as key in the redis database
+    @type redis_label: string
+    """
     if freq <= 0:
         print 'Negative frequency specified:', str(freq)
         sys.exit(1)
@@ -83,9 +94,10 @@ if __name__ == "__main__":
                         help='num of packages sent on every measurement')
     parser.add_argument('-l', '--label', metavar='LABEL',
                         default='ts_currentLatency',
-                        help='redis key associated to each measurement')
-    args = parser.parse_args()
+                        help='redis key associated to the measurement')
 
+    # Parse command line arguments
+    args = parser.parse_args()
     arg_freq = args.frequency
     arg_host = args.host
     if args.npackages <= 0:
