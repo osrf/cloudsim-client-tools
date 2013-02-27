@@ -1,58 +1,97 @@
 #!/usr/bin/env python
 
-# This script runs as a daemon and measures the latency to reach a host. Every second, 
-# this value is updated and the result is saved in a redis database with a specific key.
+""" This script runs as a daemon and measures the latency to reach a host.
+Every second, this value is updated and the result is saved in a redis
+database with a specific key.
+"""
 
 import sys
-#import daemon
 import time
 import redis
 import subprocess
+import argparse
 
-NPACKET = 1
 UNREACHABLE = 99999
-CURRENT_LATENCY_KEY = 'ts_currentLatency'
 
-USAGE="""USAGE: ts_sniffer.py <host>
-  E.g.: ts_snifer.py 11.8.0.2"""
 
-def parse_args(argv):
-    if len(argv) != 2:
-        print(USAGE)
-        sys.exit(1)
-    host = argv[1]
+def get_ping_time(host, npackages):
+    """
+    Get latency time to a given host.
 
-    return host
-
-def get_ping_time(_host):
-     
-    cmd = "fping {host} -C {npacket} -q".format(host = _host, npacket = NPACKET)
+    @param host: host destination
+    @type host: string
+    @param npackages: number of packages sent on each measurement
+    @type npackages: int
+    """
+    cmd = 'fping {host} -C {npacket} -q'.format(host=host, npacket=npackages)
     try:
         output = subprocess.check_output(cmd.split(), stderr=subprocess.STDOUT)
         print 'Output: ', output
-    except subprocess.CalledProcessError as e:
-        print e.output
-        return -1
-    
+    except subprocess.CalledProcessError as ex:
+        print ex.output
+        return UNREACHABLE
+
     # Calculate the mean of all the latencies measured for the destination host
     latencies = [float(latency) for latency in output.strip().split(':')[-1].split() if latency != '-']
 
     if len(latencies) > 0:
         return sum(latencies) / len(latencies)
-    return -2
+    return UNREACHABLE
 
-def runDaemon(_host):
+
+def runDaemon(freq, host, npackages, redis_label):
+    if freq <= 0:
+        print 'Negative frequency specified:', str(freq)
+        sys.exit(1)
+
     r = redis.Redis('localhost')
     #with daemon.DaemonContext(stdout=sys.stdout, stderr=sys.stdout):
     while True:
-        currentLatency = get_ping_time(_host)
+        currentLatency = get_ping_time(host, npackages)
         print 'Latency: ', str(currentLatency)
-        time.sleep(1)
+        period = 1.0 / freq
+        time.sleep(period)
         if currentLatency >= 0:
-            r.set(CURRENT_LATENCY_KEY, currentLatency)                    
+            r.set(redis_label, currentLatency)
         else:
-            r.set(CURRENT_LATENCY_KEY, UNREACHABLE)
-    
+            r.set(redis_label, UNREACHABLE)
+
+
+def check_negative(value):
+    """
+    Checks if a parameter is a non negative float number.
+
+    @param value: argument to verify
+    """
+    fvalue = float(value)
+    if fvalue <= 0:
+        raise argparse.ArgumentTypeError("%s is not a positive float value"
+                                         % value)
+    return fvalue
+
 if __name__ == "__main__":
-    host = parse_args(sys.argv)
-    runDaemon(host)
+    # Specify command line arguments
+    parser = argparse.ArgumentParser(description='Measures latency to a host.')
+    parser.add_argument('-f', '--frequency', metavar='FREQ',
+                        type=check_negative, default=1,
+                        help='frequency of measurements (Hz)')
+    parser.add_argument('-t', '--target-host', metavar='HOST',
+                        help='target host of the measurements')
+    parser.add_argument('-n', '--npackages', metavar='NUM',
+                        type=int,
+                        default=1,
+                        help='num of packages sent on every measurement')
+    parser.add_argument('-l', '--label', metavar='LABEL',
+                        default='ts_currentLatency',
+                        help='redis key associated to each measurement')
+    args = parser.parse_args()
+
+    arg_freq = args.frequency
+    arg_host = args.host
+    if args.npackages <= 0:
+        raise argparse.ArgumentTypeError("%s is not a positive int value"
+                                         % args.npackages)
+    arg_npackages = args.npackages
+    arg_label = args.label
+
+    runDaemon(arg_freq, arg_host, arg_npackages, arg_label)
