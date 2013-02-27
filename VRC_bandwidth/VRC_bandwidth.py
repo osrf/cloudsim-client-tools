@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 
-# Program that creates a ROS node and subscribes to the sim. state topics.
-# When the 'start' topic arrives, the program starts counting the inbound and
-# outbound bandwidth, as well as logging the data into a file. The counting and
-# logging ends when the 'stop' topic is received.
+""" Program that creates a ROS node and subscribes to the sim. state topics.
+ When the 'start' topic arrives, the program starts counting the inbound and
+ outbound bandwidth, as well as logging the data into a file. The counting and
+ logging ends when the 'stop' topic is received.
+ """
+
+ # author: caguero
 
 import time
 import datetime
@@ -18,20 +21,37 @@ from std_msgs.msg import String
 
 
 class BandwidthCount:
+    """
+    Class for counting and logging bandwith usage
+    """
+
+    #  ROS topics to activate/deactivate the counting and log
     START = 'state/start'
     STOP = 'state/stop'
 
-    def __init__(self, _freq, _dir, _prefix, _replace):
-        self.freq = _freq
-        self.dir = _dir
-        self.prefix = _prefix
-        self.replace = _replace
+    def __init__(self, freq, dir, prefix, isincremental):
+        """
+        Constructor.
+
+        @param _freq: frequency of counting and logging (Hz.)
+        @type _freq: float
+        @param _dir: directory where the log file will be contained
+        @type _dir: string
+        @param _prefix: prefix of the log filename
+        @type _prefix: string
+        @param _isincremental: True if incremental logging is selected
+        @type _isincremental: boolean
+        """
+        self.freq = freq
+        self.dir = dir
+        self.prefix = prefix
+        self.isincremental = isincremental
 
         rospy.init_node('VRC_bandwidth', anonymous=True)
 
         # Create the name of the file containing the log
         self.logFileName = self.prefix
-        if not self.replace:
+        if self.isincremental:
             timestamp = str(datetime.datetime.now())
             self.logFileName += '-' + timestamp.replace(' ', '-')
         self.logFileName += '.log'
@@ -78,10 +98,19 @@ class BandwidthCount:
         rospy.spin()
 
     def resetCounting(self):
+        """
+        Reset bandwidth stats.
+        """
         cmd = 'sudo iptables -Z'
         subprocess.check_call(cmd.split())
 
     def getBandwidthStats(self):
+        """
+        Returns the inbound and outbound packet size since the last reset.
+
+        @raise subprocess.CalledProcessError: if the external commands
+        (iptables) does not return 0
+        """
         # Get inbound bandwidth
         cmd = 'sudo iptables -L Inbound -n -v -x'
         output = subprocess.check_output(cmd.split())
@@ -94,14 +123,27 @@ class BandwidthCount:
 
         return inbound, outbound
 
-    def logCounting(self, _inbound, _outbound):
+    def logCounting(self, inbound, outbound):
+        """
+        Log current bandwidth stats on disk.
+
+        @param inbound: bytes received since the last reset
+        @type inbound: int
+        @param outbound: bytes sent since the last reset
+        @type outbound: int
+        """
         with open(self.fullPathName, 'a') as f:
             #ToDo: timestamp from simulation time (subscribed?)
             timestamp = str(time.time())
-            f.write(timestamp + ' ' + str(_inbound) + ' ' +
-                    str(_outbound) + '\n')
+            f.write(timestamp + ' ' + str(inbound) + ' ' +
+                    str(outbound) + '\n')
 
     def updateCounting(self, data):
+        """
+        Callback periodically called by ROS to update the counting/logging.
+
+        @param data Not used but necessary to match the rospy.Timer signature
+        """
         try:
             inbound, outbound = self.getBandwidthStats()
             self.logCounting(inbound, outbound)
@@ -109,6 +151,11 @@ class BandwidthCount:
             print e.output
 
     def startCounting(self, data):
+        """
+        Reset the bandwidth stats and starts counting/logging periodically.
+
+        @param data Not used but needs to match the rospy.Subscriber signature
+        """
         #rospy.loginfo('I heard the start signal')
         try:
             self.resetCounting()
@@ -119,11 +166,21 @@ class BandwidthCount:
             sys.exit(1)
 
     def stopCounting(self, data):
+        """
+        Stop the bandwidth counting and logging.
+
+        @param data Not used but needs to match the rospy.Subscriber signature
+        """
         #rospy.loginfo('I heard the stop signal')
         self.timer.shutdown()
 
 
 def check_negative(value):
+    """
+    Checks if a parameter is a non negative float number.
+
+    @param value: argument to verify
+    """
     fvalue = float(value)
     if fvalue <= 0:
         raise argparse.ArgumentTypeError("%s is not a positive float value"
@@ -140,8 +197,8 @@ if __name__ == '__main__':
                         help='path to the log file')
     parser.add_argument('-p', '--prefix', metavar='FILENAME-PREFIX',
                         default='bandwidth', help='prefix of the logfile')
-    parser.add_argument('-r', '--replace', action='store_true',
-                        help='Override files. Do not add any suffix')
+    parser.add_argument('-i', '--incremental', action='store_true',
+                        help='Do not override logs adding a timestamp suffix')
     args = parser.parse_args()
 
     # Parse command line arguments
@@ -151,7 +208,7 @@ if __name__ == '__main__':
         print 'Directory (', dir, ') does not exists'
         sys.exit(1)
     prefix = args.prefix
-    replace = args.replace
+    isincremental = args.incremental
 
     # Run the node
-    bandwidthCount = BandwidthCount(freq, dir, prefix, replace)
+    bandwidthCount = BandwidthCount(freq, dir, prefix, isincremental)
