@@ -10,6 +10,7 @@ import datetime
 import subprocess
 import argparse
 import os
+
 import sys
 
 #import roslib; roslib.load_manifest('VRC_bandwidth')
@@ -71,6 +72,7 @@ class BandwidthCount:
             cmd = 'sudo iptables -A Outbound -p all'
             subprocess.check_call(cmd.split())
         except subprocess.CalledProcessError as e:
+            print e.output
             print 'iptables initialization commands failed'
             sys.exit(1)
 
@@ -98,7 +100,7 @@ class BandwidthCount:
             #ToDo: timestamp from simulation time (subscribed?)
             timestamp = str(time.time())
             f.write(timestamp + ' ' + str(_inbound) + ' ' +
-                     str(_outbound) + '\n')
+                    str(_outbound) + '\n')
 
     def updateCounting(self, data):
         try:
@@ -133,14 +135,14 @@ if __name__ == '__main__':
     # Specify command line arguments
     parser = argparse.ArgumentParser(description='Counts/log bandwidth usage.')
     parser.add_argument('-f', '--frequency', metavar='FREQ',
-                       type=check_negative, default=1,
-                       help='frequency of counting and logging (Hz)')
+                        type=check_negative, default=1,
+                        help='frequency of counting and logging (Hz)')
     parser.add_argument('-d', '--dir', metavar='DESTINATION', default='.',
-                       help='path to the log file')
+                        help='path to the log file')
     parser.add_argument('-p', '--prefix', metavar='FILENAME-PREFIX',
-                       default='bandwidth', help='prefix of the logfile')
+                        default='bandwidth', help='prefix of the logfile')
     parser.add_argument('-r', '--replace', action='store_true',
-                       help='Override files. Do not add any suffix')
+                        help='Override files. Do not add any suffix')
     args = parser.parse_args()
 
     # Parse command line arguments
