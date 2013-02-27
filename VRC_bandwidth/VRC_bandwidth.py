@@ -10,7 +10,6 @@ import datetime
 import subprocess
 import argparse
 import os
-
 import sys
 
 #import roslib; roslib.load_manifest('VRC_bandwidth')
