@@ -61,7 +61,7 @@ class TS_Controller:
         self.current = 0.0
         self.pid = pid.PID('TS', 0, 1, 0, 100)
 
-        cmd = "init_tc.py {dev}".format(dev=self.device)
+        cmd = "vrc_init_tc.py {dev}".format(dev=self.device)
         try:
             subprocess.check_call(cmd.split())
         except subprocess.CalledProcessError as ex:
@@ -96,7 +96,7 @@ class TS_Controller:
 
             self.current = min(max(0, self.current), self.max_lat)
 
-            cmd = "configure_tc.py {dev} {latency}ms {loss}%".format(dev=self.device, latency=self.current, loss=0)
+            cmd = "vrc_configure_tc.py {dev} {latency}ms {loss}%".format(dev=self.device, latency=self.current, loss=0)
             if self.verbose:
                 print 'Command to run: ', cmd
                 print 'Target: ', target_lat
