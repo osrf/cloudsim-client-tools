@@ -6,7 +6,7 @@
  logging ends when the 'stop' topic is received.
  """
 
- # author: caguero
+# author: caguero
 
 import time
 import datetime
@@ -14,6 +14,7 @@ import subprocess
 import argparse
 import os
 import sys
+from multiprocessing import Lock
 
 import rospy
 from std_msgs.msg import String
@@ -56,6 +57,10 @@ class BandwidthCount:
             self.logfilename += '-' + timestamp.replace(' ', '-')
         self.logfilename += '.log'
         self.fullpathname = os.path.join(self.dir, self.logfilename)
+
+        # Restricts only one start_counting() at the same time
+        self.mutex = Lock()
+        self.running = False
 
         # Remove any previous log session
         if os.path.exists(self.fullpathname):
@@ -135,9 +140,10 @@ class BandwidthCount:
         @type outbound: int
         """
         with open(self.fullpathname, 'a') as logf:
-            #ToDo: timestamp from simulation time (subscribed?)
             tstamp = str(time.time())
-            logf.write(tstamp + ' ' + str(inbound) + ' ' + str(outbound) + '\n')
+            simclock = str(rospy.get_time())
+            logf.write(tstamp + ' ' + simclock + ' ' + str(inbound) +
+                       ' ' + str(outbound) + '\n')
 
     def update_counting(self, data):
         """
@@ -158,13 +164,19 @@ class BandwidthCount:
         @param data Not used but needs to match the rospy.Subscriber signature
         """
         #rospy.loginfo('I heard the start signal')
-        try:
-            self.reset_counting()
-            period = rospy.Duration(1.0 / self.freq)
-            self.timer = rospy.Timer(period, self.update_counting)
-        except subprocess.CalledProcessError as ex:
-            print ex.output
-            sys.exit(1)
+        with self.mutex:
+            if self.running:
+                return
+            else:
+                try:
+                    self.reset_counting()
+                    period = rospy.Duration(1.0 / self.freq)
+                    self.timer = rospy.Timer(period, self.update_counting)
+                except subprocess.CalledProcessError as ex:
+                    print ex.output
+                    sys.exit(1)
+                finally:
+                    self.running = True
 
     def stop_counting(self, data):
         """
@@ -173,7 +185,12 @@ class BandwidthCount:
         @param data Not used but needs to match the rospy.Subscriber signature
         """
         #rospy.loginfo('I heard the stop signal')
-        self.timer.shutdown()
+        with self.mutex:
+            if not self.running:
+                return
+            else:
+                self.timer.shutdown()
+                self.running = False
 
 
 def check_negative(value):

@@ -10,7 +10,6 @@ import sys
 import time
 import redis
 import subprocess
-import string
 import argparse
 #import daemon
 
@@ -56,9 +55,9 @@ class TS_Controller:
         self.current_lat_lab = current_latency_label
         self.target_lat_lab = target_latency_label
         self.max_lat = max_lat
-        self.verbose - verbose
+        self.verbose = verbose
 
-        self.r = redis.Redis('localhost')
+        self.database = redis.Redis('localhost')
         self.current = 0.0
         self.pid = pid.PID('TS', 0, 1, 0, 100)
 
@@ -74,9 +73,12 @@ class TS_Controller:
         Function that periodically runs and calculate the new latency
         injection based on the target and current latency values.
         """
-        if self.r.exists(self.target_lat_lab) and self.r.exists(self.current_lat_lab):
-            target_lat = float(self.r.get(self.target_lat_lab))
-            current_lat = float(self.r.get(self.current_lat_lab))
+        has_target_key = self.database.exists(self.target_lat_lab)
+        has_current_key = self.database.exists(self.current_lat_lab)
+
+        if has_target_key and has_current_key:
+            target_lat = float(self.database.get(self.target_lat_lab))
+            current_lat = float(self.database.get(self.current_lat_lab))
 
             if self.typec == TS_Controller.STATIC:  # Type: Static increment/decrement
                 if current_lat < target_lat:
@@ -92,18 +94,18 @@ class TS_Controller:
                 print '[TS_Controller::update()] Wrong controller type (', str(self.typec, ')')
                 return
 
-            latency2inject = min(max(0, self.current), self.max_lat)
+            self.current = min(max(0, self.current), self.max_lat)
 
-            cmd = "configure_tc.py {dev} {latency}ms {loss}%".format(dev=self.device, latency=latency2inject, loss=0)
+            cmd = "configure_tc.py {dev} {latency}ms {loss}%".format(dev=self.device, latency=self.current, loss=0)
             if self.verbose:
                 print 'Command to run: ', cmd
                 print 'Target: ', target_lat
                 print 'Current: ', current_lat
-                print 'To inject: ', latency2inject
+                print 'To inject: ', self.current
             try:
                 status = subprocess.check_call(cmd.split())
-            except subprocess.CalledProcessError as e:
-                print e.output
+            except subprocess.CalledProcessError as ex:
+                print ex.output
                 print status, '[TS_Controller::update()] Error using tc'
                 return
         else:
@@ -111,8 +113,8 @@ class TS_Controller:
                 print '[TS_Controller::update()] Latency keys not available'
 
 
-def runDaemon(freq, typec, device, current_latency_label,
-              target_latency_label, max_lat, verbose):
+def run_daemon(freq, typec, device, current_latency_label,
+               target_latency_label, max_lat, verbose):
     """
     Run the latency injection controller periodically at a given frequency.
 
@@ -132,15 +134,15 @@ def runDaemon(freq, typec, device, current_latency_label,
     @type verbose: boolean
     """
     #with daemon.DaemonContext(stdout=sys.stdout, stderr=sys.stdout):
-    ts = TS_Controller(freq, typec, device, current_latency_label,
-                       target_latency_label, max_lat, verbose)
+    shaping = TS_Controller(freq, typec, device, current_latency_label,
+                            target_latency_label, max_lat, verbose)
     if freq <= 0.0:
         print 'Negative frequency specified:', str(freq)
         sys.exit(1)
 
     period = 1.0 / freq
     while True:
-        ts.update()
+        shaping.update()
         time.sleep(period)
 
 
@@ -161,14 +163,13 @@ if __name__ == "__main__":
     # Specify command line arguments
     parser = argparse.ArgumentParser(description='Injects extra latency into an interface')
     parser.add_argument('-f', '--frequency', metavar='FREQ',
-                        type=check_negative, default=1,
+                        type=check_negative, default=1.0,
                         help='frequency of measurements (Hz)')
     parser.add_argument('-t', '--type', metavar='CONTROLLER_TYPE',
                         choices=[TS_Controller.STATIC,
                         TS_Controller.DYNAMIC, TS_Controller.PID],
+                        default=TS_Controller.DYNAMIC,
                         help='type of controller')
-    parser.add_argument('-d', '--device', metavar='DEVICE', type=string,
-                        help='num of packages sent on every measurement')
     parser.add_argument('-cl', '--current_latency_label', metavar='CURRENT_LATENCY_LABEL',
                         default='ts_currentLatency',
                         help='redis key associated to the current measurement')
@@ -176,10 +177,12 @@ if __name__ == "__main__":
                         default='ts_targetLatency',
                         help='redis key associated to the target measurement')
     parser.add_argument('-m', '--max', metavar='LATENCY',
-                        type=check_negative, default=400.0,
+                        type=check_negative, default=500.0,
                         help='maximum injection value (ms.)')
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='show information of the controller status')
+    parser.add_argument('-d', '--device', metavar='DEVICE', required='True',
+                        help='num of packages sent on every measurement')
 
     # Parse command line arguments
     args = parser.parse_args()
@@ -191,5 +194,5 @@ if __name__ == "__main__":
     arg_max_latency = args.max
     arg_verbose = args.verbose
 
-    runDaemon(arg_freq, arg_type, arg_device, arg_current_latency_label,
-              arg_target_latency_label, arg_max_latency, arg_verbose)
+    run_daemon(arg_freq, arg_type, arg_device, arg_current_latency_label,
+               arg_target_latency_label, arg_max_latency, arg_verbose)
