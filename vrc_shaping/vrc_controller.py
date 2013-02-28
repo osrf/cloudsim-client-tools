@@ -11,9 +11,9 @@ import time
 import redis
 import subprocess
 import argparse
-#import daemon
 
 from cloudsim import pid
+import rospy
 
 
 class TS_Controller:
@@ -142,8 +142,10 @@ def run_daemon(freq, typec, device, current_latency_label,
 
     period = 1.0 / freq
     while True:
+        start_time = time.time()
         shaping.update()
-        time.sleep(period)
+        elapsed_time = time.time() - start_time
+        time.sleep(max(period - elapsed_time, 0))
 
 
 def check_negative(value):
