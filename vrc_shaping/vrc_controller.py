@@ -13,7 +13,6 @@ import subprocess
 import argparse
 
 from cloudsim import pid
-import rospy
 
 
 class TS_Controller:

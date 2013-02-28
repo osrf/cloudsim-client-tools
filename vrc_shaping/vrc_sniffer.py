@@ -10,7 +10,6 @@ import time
 import redis
 import subprocess
 import argparse
-import time
 
 UNREACHABLE = 99999
 
@@ -62,7 +61,6 @@ def run_daemon(freq, host, npackages, redis_label):
 
     while True:
         start_time = time.time()
-        print start_time
         current_latency = get_ping_time(host, npackages)
         print 'Latency: ', str(current_latency)
         if current_latency >= 0:
