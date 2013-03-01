@@ -57,17 +57,19 @@ def run_daemon(freq, host, npackages, redis_label):
         sys.exit(1)
 
     database = redis.Redis('localhost')
-    #with daemon.DaemonContext(stdout=sys.stdout, stderr=sys.stdout):
+    period = 1.0 / freq
+
     while True:
-        #ToDo: Take into account the time of get_ping_time for the sleep
+        start_time = time.time()
         current_latency = get_ping_time(host, npackages)
         print 'Latency: ', str(current_latency)
-        period = 1.0 / freq
-        time.sleep(period)
         if current_latency >= 0:
             database.set(redis_label, current_latency)
         else:
             database.set(redis_label, UNREACHABLE)
+
+        elapsed_time = time.time() - start_time
+        time.sleep(max(period - elapsed_time, 0))
 
 
 def check_negative(value):
