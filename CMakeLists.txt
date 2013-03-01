@@ -4,7 +4,7 @@ project(cloudsim-client-tools)
 string(TOLOWER ${PROJECT_NAME} PROJECT_NAME_LOWER)
 set(MAJOR_VERSION 0)
 set(MINOR_VERSION 9)
-set(PATCH_VERSION 5)
+set(PATCH_VERSION 6)
 
 set(VERSION ${MAJOR_VERSION}.${MINOR_VERSION})
 set(VERSION_FULL ${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION})
@@ -13,6 +13,9 @@ message(STATUS "${PROJECT_NAME} version ${VERSION_FULL}")
 
 add_executable(hello hello.cc)
 install(TARGETS hello RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+
+# Install vrc_wrapper.sh that allows to source conf files and run jobs
+install(PROGRAMS vrc_wrapper/vrc_wrapper.sh DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 
 # Install Traffic shaper utilities:
 # vrc_init_tc: Initialize tc commands for shaping
