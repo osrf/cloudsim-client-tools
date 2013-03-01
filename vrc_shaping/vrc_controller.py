@@ -30,7 +30,7 @@ class TS_Controller:
     STEP = 10.0
 
     def __init__(self, freq, typec, device, current_latency_label,
-                 target_latency_label, max_lat, verbose):
+                 target_latency_label, max_lat, scale, verbose):
         """
         Constructor.
 
@@ -46,6 +46,8 @@ class TS_Controller:
         @type target_latency_label: string
         @param max_lat: maximum injection value (ms.)
         @type max_lat: float
+        @param scale: Multiplies the latency to inject by the scale factor
+        @type scale: float
         @param verbose: show information of the controller status
         @type verbose: boolean
         """
@@ -55,6 +57,7 @@ class TS_Controller:
         self.current_lat_lab = current_latency_label
         self.target_lat_lab = target_latency_label
         self.max_lat = max_lat
+        self.scale = scale
         self.verbose = verbose
 
         self.database = redis.Redis('localhost')
@@ -94,7 +97,7 @@ class TS_Controller:
                 print '[TS_Controller::update()] Wrong controller type (', str(self.typec, ')')
                 return
 
-            self.current = min(max(0, self.current), self.max_lat)
+            self.current = min(max(0, self.current), self.max_lat) * self.scale
 
             cmd = "vrc_configure_tc.py {dev} {latency}ms {loss}%".format(dev=self.device, latency=self.current, loss=0)
             if self.verbose:
@@ -114,7 +117,7 @@ class TS_Controller:
 
 
 def run_daemon(freq, typec, device, current_latency_label,
-               target_latency_label, max_lat, verbose):
+               target_latency_label, max_lat, scale, verbose):
     """
     Run the latency injection controller periodically at a given frequency.
 
@@ -130,12 +133,14 @@ def run_daemon(freq, typec, device, current_latency_label,
     @type target_latency_label: string
     @param max_lat: maximum injection value (ms.)
     @type max_lat: float
+    @param scale: Multiplies the latency to inject by the scale factor
+    @type scale: float
     @param verbose: show information of the controller status
     @type verbose: boolean
     """
     #with daemon.DaemonContext(stdout=sys.stdout, stderr=sys.stdout):
     shaping = TS_Controller(freq, typec, device, current_latency_label,
-                            target_latency_label, max_lat, verbose)
+                            target_latency_label, max_lat, scale, verbose)
     if freq <= 0.0:
         print 'Negative frequency specified:', str(freq)
         sys.exit(1)
@@ -181,8 +186,12 @@ if __name__ == "__main__":
                         help='maximum injection value (ms.)')
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='show information of the controller status')
+    parser.add_argument('-s', '--scale', metavar='SCALE-FACTOR',
+                        type=check_negative, default=1.0,
+                        help='Multiplies the latency to inject by the scale factor')
     parser.add_argument('-d', '--device', metavar='DEVICE', required='True',
                         help='num of packages sent on every measurement')
+
 
     # Parse command line arguments
     args = parser.parse_args()
@@ -193,6 +202,7 @@ if __name__ == "__main__":
     arg_target_latency_label = args.target_latency_label
     arg_max_latency = args.max
     arg_verbose = args.verbose
+    arg_scale = args.scale
 
     run_daemon(arg_freq, arg_type, arg_device, arg_current_latency_label,
-               arg_target_latency_label, arg_max_latency, arg_verbose)
+               arg_target_latency_label, arg_max_latency, arg_scale, arg_verbose)
