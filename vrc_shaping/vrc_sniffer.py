@@ -10,6 +10,7 @@ import time
 import redis
 import subprocess
 import argparse
+import unittest
 
 UNREACHABLE = 99999
 
@@ -84,7 +85,25 @@ def check_negative(value):
                                          % value)
     return fvalue
 
+
+class TestSnifferFunctions(unittest.TestCase):
+
+    def setUp(self):
+        self.reachable_hosts = ['localhost']
+        self.unreachable_hosts = ['nonexistenhost']
+
+    def test_get_ping_time(self):
+        for host in self.reachable_hosts:
+            latency = get_ping_time(host, 1)
+            self.assertTrue(latency > 0 and latency != UNREACHABLE)
+
+        for host in self.unreachable_hosts:
+            latency = get_ping_time(host, 1)
+            self.assertTrue(latency == UNREACHABLE)
+
+
 if __name__ == "__main__":
+
     # Specify command line arguments
     parser = argparse.ArgumentParser(description='Measures latency to a host.')
     parser.add_argument('-f', '--frequency', metavar='FREQ',
