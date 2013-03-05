@@ -193,7 +193,6 @@ if __name__ == "__main__":
     parser.add_argument('-d', '--device', metavar='DEVICE', required='True',
                         help='num of packages sent on every measurement')
 
-
     # Parse command line arguments
     args = parser.parse_args()
     arg_freq = args.frequency
