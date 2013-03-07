@@ -12,8 +12,6 @@ import redis
 import subprocess
 import argparse
 
-from cloudsim import pid
-
 
 class TS_Controller:
     """
@@ -25,7 +23,6 @@ class TS_Controller:
     # Constants
     STATIC = 'static'
     DYNAMIC = 'dynamic'
-    PID = 'pid'
     STEP = 10.0
 
     def __init__(self, freq, typec, device, current_latency_label,
@@ -89,9 +86,6 @@ class TS_Controller:
                     self.current -= TS_Controller.STEP
             elif self.typec == TS_Controller.DYNAMIC:  # Type: Dynamic increment/decrement
                 self.current += target_lat - current_lat
-            elif self.typec == TS_Controller.PID:  # Type: PID
-                self.pid.setReference((target_lat - current_lat) / self.max_lat)
-                self.current += (self.pid.getOutput() / 100.0) * self.max_lat
             else:
                 print '[TS_Controller::update()] Wrong controller type (', str(self.typec, ')')
                 return
@@ -173,7 +167,7 @@ if __name__ == "__main__":
                         help='frequency of measurements (Hz)')
     parser.add_argument('-t', '--type', metavar='CONTROLLER_TYPE',
                         choices=[TS_Controller.STATIC,
-                        TS_Controller.DYNAMIC, TS_Controller.PID],
+                        TS_Controller.DYNAMIC],
                         default=TS_Controller.DYNAMIC,
                         help='type of controller')
     parser.add_argument('-cl', '--current_latency_label', metavar='CURRENT_LATENCY_LABEL',
