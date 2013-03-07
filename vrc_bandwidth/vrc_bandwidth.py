@@ -16,8 +16,13 @@ import os
 import sys
 from multiprocessing import Lock
 
-import rospy
-from std_msgs.msg import String
+# If ROS is not installed && sourced, that will fail
+try:
+    import rospy
+    from std_msgs.msg import String
+except ImportError:
+    print ('ROS is not installed or its environment is not ready') 
+    sys.exit(1)
 
 
 class BandwidthCount:
