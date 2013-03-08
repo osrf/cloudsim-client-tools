@@ -4,7 +4,7 @@ project(cloudsim-client-tools)
 string(TOLOWER ${PROJECT_NAME} PROJECT_NAME_LOWER)
 set(MAJOR_VERSION 0)
 set(MINOR_VERSION 9)
-set(PATCH_VERSION 8)
+set(PATCH_VERSION 11)
 
 set(VERSION ${MAJOR_VERSION}.${MINOR_VERSION})
 set(VERSION_FULL ${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION})
@@ -22,18 +22,13 @@ install(PROGRAMS vrc_wrapper/vrc_wrapper.sh DESTINATION ${CMAKE_INSTALL_PREFIX}/
 # vrc_configure_tc: Injects extra latency commands for shaping
 # vrc_sniffer: Sniffer to measure latency between router and COU
 # vrc_controller: Open loop controller to adjust latency to a target values  
-# pid: Module that contains a PID template that can be used by the controller
 install(PROGRAMS vrc_shaping/tc/vrc_init_tc.py vrc_shaping/tc/vrc_configure_tc.py DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 install(PROGRAMS vrc_shaping/tc/init_tc.py vrc_shaping/tc/configure_tc.py DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 install(PROGRAMS vrc_shaping/vrc_sniffer.py vrc_shaping/vrc_controller.py DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
-install(PROGRAMS vrc_shaping/cloudsim/pid.py vrc_shaping/cloudsim/__init__.py DESTINATION /usr/lib/python2.7/cloudsim)
-install(PROGRAMS vrc_shaping/conf/vrc_sniffer_outbound.conf DESTINATION /etc/init)
-install(PROGRAMS vrc_shaping/conf/vrc_controller_inbound.conf DESTINATION /etc/init)
 
 # Install VRC bandwidth utilities:
 # VRC_bandwidth: Count and logging bandwidth when a specific start/stop ros topic is received
 install(PROGRAMS vrc_bandwidth/vrc_bandwidth.py DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
-install(PROGRAMS vrc_bandwidth/conf/vrc_bandwidth.conf DESTINATION /etc/init)
 
 ########################################
 # Package Creation: 
