@@ -58,7 +58,6 @@ class TS_Controller:
 
         self.database = redis.Redis('localhost')
         self.current = 0.0
-        self.pid = pid.PID('TS', 0, 1, 0, 100)
 
         cmd = "vrc_init_tc.py {dev}".format(dev=self.device)
         try:
