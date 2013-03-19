@@ -21,7 +21,7 @@ try:
     import rospy
     from std_msgs.msg import String
 except ImportError:
-    print ('ROS is not installed or its environment is not ready') 
+    print ('ROS is not installed or its environment is not ready')
     sys.exit(1)
 
 
@@ -35,7 +35,7 @@ class BandwidthCount:
     STOP = 'vrc/state/stop'
     TO_KB = 1.0 / 1000.0
 
-    def __init__(self, freq, directory, prefix, is_incremental):
+    def __init__(self, freq, directory, prefix, mode):
         """
         Constructor.
 
@@ -51,25 +51,16 @@ class BandwidthCount:
         self.freq = freq
         self.dir = directory
         self.prefix = prefix
-        self.is_incremental = is_incremental
+        self.mode = mode
 
         rospy.init_node('VRC_bandwidth', anonymous=True)
 
-        # Create the name of the file containing the log
-        self.logfilename = self.prefix
-        if self.is_incremental:
-            timestamp = str(datetime.datetime.now())
-            self.logfilename += '-' + timestamp.replace(' ', '-')
-        self.logfilename += '.log'
-        self.fullpathname = os.path.join(self.dir, self.logfilename)
+        # Default name of the file containing the log
+        self.logfilename = self.prefix + '.log'
 
         # Restricts only one start_counting() at the same time
         self.mutex = Lock()
         self.running = False
-
-        # Remove any previous log session
-        if os.path.exists(self.fullpathname):
-            os.remove(self.fullpathname)
 
         # Subscribe to the topics to start and stop the counting/logging
         rospy.Subscriber(BandwidthCount.START, String, self.start_counting)
@@ -144,6 +135,7 @@ class BandwidthCount:
         @param outbound: KBytes sent since the last reset
         @type outbound: int
         """
+        print self.fullpathname
         with open(self.fullpathname, 'a') as logf:
             tstamp = str(time.time())
             simclock = str(rospy.get_time())
@@ -174,6 +166,25 @@ class BandwidthCount:
                 return
             else:
                 try:
+                    # Update filename
+                    if self.mode == 'new':
+                        timestamp = str(datetime.datetime.now())
+                        self.logfilename = self.prefix + '-' + timestamp.replace(' ', '-') + '.log'
+                    self.fullpathname = os.path.join(self.dir, self.logfilename)
+
+                    # Create header unless mode is resume and file exists
+                    if ((self.mode == 'replace') or
+                       ((self.mode == 'resume') and (not os.path.exists(self.fullpathname))) or
+                       (self.mode == 'new')):
+                        with open(self.fullpathname, 'w') as logf:
+                            header = '''
+# This is a log of bandwidth usage,
+# including time stamps and a summation of inbound and
+# outbound kilobytes of bandwidth.\n
+# Router_time /clock inKB outKB\n
+'''
+                            logf.write(header)
+
                     self.reset_counting()
                     period = rospy.Duration(1.0 / self.freq)
                     self.timer = rospy.Timer(period, self.update_counting)
@@ -220,8 +231,13 @@ if __name__ == '__main__':
                         help='path to the log file')
     parser.add_argument('-p', '--prefix', metavar='FILENAME-PREFIX',
                         default='bandwidth', help='prefix of the logfile')
-    parser.add_argument('-i', '--incremental', action='store_true',
-                        help='Do not override logs adding a timestamp suffix')
+    parser.add_argument('-m', '--mode', choices=['replace', 'resume', 'new'],
+                        default='new', help='''
+Defines the behavior after a new start/stop cycle. 'replace' overrides the log.
+'resume' appends data to the current log. 'new' does not override log by creating
+ a new file adding a timestamp suffix
+'''
+                        )
 
     # Parse command line arguments
     args = parser.parse_args()
@@ -231,7 +247,7 @@ if __name__ == '__main__':
         print 'Directory (', arg_dir, ') does not exists'
         sys.exit(1)
     arg_prefix = args.prefix
-    arg_is_incr = args.incremental
+    arg_mode = args.mode
 
     # Run the node
-    bandwidth_count = BandwidthCount(arg_freq, arg_dir, arg_prefix, arg_is_incr)
+    bandwidth_count = BandwidthCount(arg_freq, arg_dir, arg_prefix, arg_mode)
