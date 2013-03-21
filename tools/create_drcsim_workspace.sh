@@ -12,9 +12,9 @@ if [ $# -lt 1 ]; then
   echo $USAGE
   exit 1
 fi
-DESTDIR=$1
+DESTDIR=`readlink -f $1`
 if [ $# -gt 1 ]; then
-  INSTALL_PREFIX=$2
+  INSTALL_PREFIX=`readlink -f $2`
 else
   INSTALL_PREFIX=/usr
 fi
@@ -22,6 +22,8 @@ if [ -e $DESTDIR ]; then
   echo "Destination directory $DESTDIR already exists.  Aborting."
   exit 1
 fi
+
+set -x
 
 ROSINSTALL_FILE_URL=https://bitbucket.org/osrf/cloudsim-client-tools/raw/default/tools/drcsim.rosinstall
 ROSDISTRO=fuerte
