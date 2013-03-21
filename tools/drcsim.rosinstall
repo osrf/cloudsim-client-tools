@@ -1,0 +1,19 @@
+- hg:
+    local-name: gazebo
+    uri: https://bitbucket.org/osrf/gazebo
+    version: default
+
+- hg:
+    local-name: drcsim
+    uri: https://bitbucket.org/osrf/drcsim
+    version: default
+
+- hg:
+    local-name: sandia-hand
+    uri: https://bitbucket.org/osrf/sandia-hand
+    version: default
+
+- hg:
+    local-name: osrf-common
+    uri: https://bitbucket.org/osrf/osrf-common
+    version: default
