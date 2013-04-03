@@ -31,10 +31,10 @@ MAKE_J=-j16
 
 # add ROS repo
 sudo apt-get install -y wget
-sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu fuerte main" > /etc/apt/sources.list.d/ros-latest.list'
+sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu precise main" > /etc/apt/sources.list.d/ros-latest.list'
 wget http://packages.ros.org/ros.key -O - | sudo apt-key add -
 # OSRF repository to get bullet
-sudo sh -c 'echo "deb http://packages.osrfoundation.org/drc/ubuntu fuerte main" > /etc/apt/sources.list.d/drc-latest.list'
+sudo sh -c 'echo "deb http://packages.osrfoundation.org/drc/ubuntu precise main" > /etc/apt/sources.list.d/drc-latest.list'
 wget http://packages.osrfoundation.org/drc.key -O - | sudo apt-key add -
 sudo apt-get update
 
