@@ -29,6 +29,14 @@ ROSINSTALL_FILE_URL=https://bitbucket.org/osrf/cloudsim-client-tools/raw/default
 ROSDISTRO=fuerte
 MAKE_J=-j16
 
+# add ROS repo
+apt-get install -y wget
+sh -c 'echo "deb http://packages.ros.org/ros/ubuntu ${DISTRO} main" > /etc/apt/sources.list.d/ros-latest.list'
+wget http://packages.ros.org/ros.key -O - | apt-key add -
+# OSRF repository to get bullet
+sh -c 'echo "deb http://packages.osrfoundation.org/drc/ubuntu ${DISTRO} main" > /etc/apt/sources.list.d/drc-latest.list'
+wget http://packages.osrfoundation.org/drc.key -O - | apt-key add - apt-get update
+
 # Install pre-reqs, which were gathered from the debian/control files in the
 # various -release repositories
 # avr-gcc avr-libc 
