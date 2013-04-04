@@ -14,6 +14,7 @@ import subprocess
 import argparse
 import os
 import sys
+import redis
 from multiprocessing import Lock
 
 # If ROS is not installed && sourced, that will fail
@@ -35,7 +36,8 @@ class BandwidthCount:
     STOP = 'vrc/state/stop'
     TO_KB = 1.0 / 1000.0
 
-    def __init__(self, freq, directory, prefix, mode):
+    def __init__(self, freq, directory, prefix, mode,
+                 dev, fc_ip, uplink, downlink):
         """
         Constructor.
 
@@ -52,6 +54,10 @@ class BandwidthCount:
         self.dir = directory
         self.prefix = prefix
         self.mode = mode
+        self.dev = dev
+        self.fc_ip = fc_ip
+        self.uplink = uplink
+        self.downlink = downlink
 
         rospy.init_node('VRC_bandwidth', anonymous=True)
 
@@ -62,67 +68,35 @@ class BandwidthCount:
         self.mutex = Lock()
         self.running = False
 
+        # Redis Database handler
+        self.db = redis.Redis()
+
         # Subscribe to the topics to start and stop the counting/logging
         rospy.Subscriber(BandwidthCount.START, String, self.start_counting)
         rospy.Subscriber(BandwidthCount.STOP, String, self.stop_counting)
 
-        try:
-            # Flush all chains
-            cmd = 'sudo iptables -F'
-            subprocess.check_call(cmd.split())
-            # Delete all chains
-            cmd = 'sudo iptables -X'
-            subprocess.check_call(cmd.split())
-
-            # Create iptables chains
-            cmd = 'sudo iptables -N Inbound'
-            subprocess.check_call(cmd.split())
-            cmd = 'sudo iptables -N Outbound'
-            subprocess.check_call(cmd.split())
-
-            # Link with default traffic chains
-            cmd = 'sudo iptables -I INPUT -j Inbound'
-            subprocess.check_call(cmd.split())
-            cmd = 'sudo iptables -I OUTPUT -j Outbound'
-            subprocess.check_call(cmd.split())
-
-            # Select traffic to measure [tcp|udp|all]
-            cmd = 'sudo iptables -A Inbound -p all'
-            subprocess.check_call(cmd.split())
-            cmd = 'sudo iptables -A Outbound -p all'
-            subprocess.check_call(cmd.split())
-        except subprocess.CalledProcessError as ex:
-            print ex.output
-            print 'iptables initialization commands failed'
-            sys.exit(1)
-
         rospy.spin()
 
-    @staticmethod
-    def reset_counting():
+    def reset_counting(self):
         """
         Reset bandwidth stats.
         """
-        cmd = 'sudo iptables -Z'
-        subprocess.check_call(cmd.split())
 
-    @staticmethod
-    def get_bandwidth_stats():
+        #cmd = 'sudo restart vrc_bitcounter ' + self.dev + ' ' + self.fc_ip
+        #cmd = 'sudo ../vrc_bitcounter/build/src/vrc_bitcounter ' + self.dev + ' ' + self.fc_ip + '&'
+        #subprocess.check_call(cmd.split())
+
+
+    def get_bandwidth_stats(self):
         """
         Returns the inbound and outbound packet size since the last reset.
 
         @raise subprocess.CalledProcessError: if the external commands
         (iptables) does not return 0
         """
-        # Get inbound bandwidth (KBytes)
-        cmd = 'sudo iptables -L Inbound -n -v -x'
-        output = str(subprocess.check_output(cmd.split()))
-        inbound = float(output.split('\n')[2].split()[1]) * BandwidthCount.TO_KB
 
-        # Get outbound bandwidth (Kbytes)
-        cmd = 'sudo iptables -L Outbound -n -v -x'
-        output = str(subprocess.check_output(cmd.split()))
-        outbound = float(output.split('\n')[2].split()[1]) * BandwidthCount.TO_KB
+        inbound = self.db.get('VRC_BytesToFC')
+        outbound = self.db.get('VRC_BytesFromFC')
 
         return inbound, outbound
 
@@ -139,8 +113,31 @@ class BandwidthCount:
         with open(self.fullpathname, 'a') as logf:
             tstamp = str(time.time())
             simclock = str(rospy.get_time())
-            logf.write(tstamp + ' ' + simclock + ' ' + str(inbound) +
-                       ' ' + str(outbound) + '\n')
+            logf.write(tstamp + ' ' + simclock + ' ' + inbound +
+                       ' ' + outbound + '\n')
+
+    def check_limits(self, inbound, outbound):
+        """
+        Check if the allocated inbound/outbound bits have been reached the
+        maximum limit allowed. In afirmative case, the associated link
+        will be disabled for communication.
+
+        @param inbound: current number of bits sent to the field computer
+        @param outbound: current number of bits sent from the field computer
+        """
+        print 'inbound:', inbound
+        print 'inbound limit:', self.uplink
+        if long(inbound) > long(self.uplink):
+            print 'Uplink limit reached'
+            cmd = 'sudo iptables -A INPUT -s ' + self.fc_ip + ' -j DROP'
+            subprocess.check_call(cmd.split())
+
+        print 'outbound:', outbound
+        print 'outbound limit:', self.downlink
+        if long(outbound) > long(self.downlink):
+            print 'Downlink limit reached'
+            cmd = 'sudo iptables -A OUTPUT -s ' + self.fc_ip + ' -j DROP'
+            subprocess.check_call(cmd.split())
 
     def update_counting(self, data):
         """
@@ -151,6 +148,7 @@ class BandwidthCount:
         try:
             inbound, outbound = self.get_bandwidth_stats()
             self.log_counting(inbound, outbound)
+            self.check_limits(inbound, outbound)
         except subprocess.CalledProcessError as ex:
             print ex.output
 
@@ -160,7 +158,7 @@ class BandwidthCount:
 
         @param data Not used but needs to match the rospy.Subscriber signature
         """
-        #rospy.loginfo('I heard the start signal')
+        rospy.loginfo('I heard the start signal')
         with self.mutex:
             if self.running:
                 return
@@ -200,11 +198,19 @@ class BandwidthCount:
 
         @param data Not used but needs to match the rospy.Subscriber signature
         """
-        #rospy.loginfo('I heard the stop signal')
+        rospy.loginfo('I heard the stop signal')
         with self.mutex:
             if not self.running:
                 return
             else:
+                # Stop the bit counter
+                #cmd = 'sudo stop vrc_bitcounter eth1 192.168.1.74'
+                #subprocess.check_call(cmd.split())
+
+                # Resume communications
+                cmd = 'sudo iptables -F'
+                subprocess.check_call(cmd.split())
+
                 self.timer.shutdown()
                 self.running = False
 
@@ -238,9 +244,19 @@ Defines the behavior after a new start/stop cycle. 'replace' overrides the log.
  a new file adding a timestamp suffix
 '''
                         )
+    parser.add_argument('dev', metavar='DEVICE',
+                        help='Device to attach the bit accounter (ex. eth0)')
+    parser.add_argument('fc_ip', metavar='FIELD-COMPUTER-IP',
+                        help='IP Address of the field computer')
+    parser.add_argument('uplink_bits_limit', metavar='UPLINK-BITS-LIMIT',
+                        help='Number of Uplink bits alotted')
+    parser.add_argument('downlink_bits_limit', metavar='DOWNLINK-BITS-LIMIT',
+                        help='Number of Downlink bits alotted')
 
     # Parse command line arguments
     args = parser.parse_args()
+    print args
+
     arg_freq = args.frequency
     arg_dir = args.dir
     if (not os.path.exists(arg_dir)):
@@ -248,6 +264,12 @@ Defines the behavior after a new start/stop cycle. 'replace' overrides the log.
         sys.exit(1)
     arg_prefix = args.prefix
     arg_mode = args.mode
+    arg_dev = args.dev
+    args_fc_ip = args.fc_ip
+    arg_uplink = args.uplink_bits_limit
+    arg_downlink = args.downlink_bits_limit
 
     # Run the node
-    bandwidth_count = BandwidthCount(arg_freq, arg_dir, arg_prefix, arg_mode)
+    bandwidth_count = BandwidthCount(arg_freq, arg_dir, arg_prefix,
+                                     arg_mode, arg_dev, args_fc_ip,
+                                     arg_uplink, arg_downlink)
