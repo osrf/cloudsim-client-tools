@@ -37,7 +37,7 @@ class BandwidthCount:
     TO_KB = 1.0 / 1000.0
 
     def __init__(self, freq, directory, prefix, mode,
-                 dev, fc_ip, uplink, downlink):
+                 dev, fc_ip, uplink, downlink, topic_uplink, topic_downlink):
         """
         Constructor.
 
@@ -50,6 +50,7 @@ class BandwidthCount:
         @param isincremental: True if incremental logging is selected
         @type isincremental: boolean
         """
+        print 'Starting a new bandwidth log'
         self.freq = freq
         self.dir = directory
         self.prefix = prefix
@@ -58,6 +59,8 @@ class BandwidthCount:
         self.fc_ip = fc_ip
         self.uplink = uplink
         self.downlink = downlink
+        self.topic_uplink = topic_uplink
+        self.topic_downlink = topic_downlink
 
         rospy.init_node('VRC_bandwidth', anonymous=True)
 
@@ -71,6 +74,14 @@ class BandwidthCount:
         # Redis Database handler
         self.db = redis.Redis()
 
+        # Flags to know if the links are active
+        self.is_uplink_active = True
+        self.is_downlink_active = True
+
+        # Publishers for the remaining bits allowed
+        self.pub_uplink = rospy.Publisher(self.topic_uplink, String)
+        self.pub_downlink = rospy.Publisher(self.topic_downlink, String)
+
         # Subscribe to the topics to start and stop the counting/logging
         rospy.Subscriber(BandwidthCount.START, String, self.start_counting)
         rospy.Subscriber(BandwidthCount.STOP, String, self.stop_counting)
@@ -81,11 +92,19 @@ class BandwidthCount:
         """
         Reset bandwidth stats.
         """
+        # Reset the accounting. That's also done by the vrc_accounter.
+        self.db.set('VRC_BytesFromFC', 0)
+        self.db.set('VRC_BytesToFC', 0)
 
-        #cmd = 'sudo restart vrc_bitcounter ' + self.dev + ' ' + self.fc_ip
-        #cmd = 'sudo ../vrc_bitcounter/build/src/vrc_bitcounter ' + self.dev + ' ' + self.fc_ip + '&'
-        #subprocess.check_call(cmd.split())
-
+        cmd = 'sudo stop vrc_bitcounter'
+        try:
+            subprocess.check_call(cmd.split())
+            print 'vrc_bitcounter stopped'
+        except:
+            None
+        cmd = 'sudo start vrc_bitcounter'
+        subprocess.check_call(cmd.split())
+        print 'vrc_bitcounter started'
 
     def get_bandwidth_stats(self):
         """
@@ -127,17 +146,26 @@ class BandwidthCount:
         """
         print 'inbound:', inbound
         print 'inbound limit:', self.uplink
-        if long(inbound) > long(self.uplink):
+        if long(inbound) > long(self.uplink) and self.is_uplink_active:
             print 'Uplink limit reached'
-            cmd = 'sudo iptables -A INPUT -s ' + self.fc_ip + ' -j DROP'
+            cmd = 'sudo iptables -I FORWARD -i tun0 -o eth0 -j DROP'
             subprocess.check_call(cmd.split())
+            self.is_uplink_active = False
 
         print 'outbound:', outbound
         print 'outbound limit:', self.downlink
-        if long(outbound) > long(self.downlink):
+        if long(outbound) > long(self.downlink) and self.is_downlink_active:
             print 'Downlink limit reached'
-            cmd = 'sudo iptables -A OUTPUT -s ' + self.fc_ip + ' -j DROP'
+            cmd = 'sudo iptables -I FORWARD -i eth0 -o tun0 -j DROP'
             subprocess.check_call(cmd.split())
+            self.is_downlink_active = False
+
+    def publish_remaining_bits(self, inbound, outbound):
+        remaining_uplink = String(str(long(self.uplink) - long(inbound)))
+        remaining_downlink = String(str(long(self.downlink) - long(outbound)))
+
+        self.pub_uplink.publish(remaining_uplink)
+        self.pub_downlink.publish(remaining_downlink)
 
     def update_counting(self, data):
         """
@@ -149,6 +177,7 @@ class BandwidthCount:
             inbound, outbound = self.get_bandwidth_stats()
             self.log_counting(inbound, outbound)
             self.check_limits(inbound, outbound)
+            self.publish_remaining_bits(inbound, outbound)
         except subprocess.CalledProcessError as ex:
             print ex.output
 
@@ -203,13 +232,33 @@ class BandwidthCount:
             if not self.running:
                 return
             else:
-                # Stop the bit counter
-                #cmd = 'sudo stop vrc_bitcounter eth1 192.168.1.74'
-                #subprocess.check_call(cmd.split())
+                # Reset the accounting. That's also done by the vrc_accounter.
+                self.db.set('VRC_BytesFromFC', 0)
+                self.db.set('VRC_BytesToFC', 0)
 
                 # Resume communications
-                cmd = 'sudo iptables -F'
-                subprocess.check_call(cmd.split())
+                try:
+                    if not self.is_uplink_active:
+                        cmd = 'sudo iptables -D FORWARD -i tun0 -o eth0 -j DROP'
+                        subprocess.check_call(cmd.split())
+                        self.is_uplink_active = True
+                except:
+                    None
+                try:
+                    if not self.is_downlink_active:
+                        cmd = 'sudo iptables -D FORWARD -i eth0 -o tun0 -j DROP'
+                        subprocess.check_call(cmd.split())
+                        self.is_downlink_active = True
+                except:
+                    None
+
+                # Stop the accouning
+                cmd = 'sudo stop vrc_bitcounter'
+                try:
+                    subprocess.check_call(cmd.split())
+                    print 'vrc_bitcounter stopped'
+                except:
+                    None
 
                 self.timer.shutdown()
                 self.running = False
@@ -240,10 +289,16 @@ if __name__ == '__main__':
     parser.add_argument('-m', '--mode', choices=['replace', 'resume', 'new'],
                         default='new', help='''
 Defines the behavior after a new start/stop cycle. 'replace' overrides the log.
-'resume' appends data to the current log. 'new' does not override log by creating
- a new file adding a timestamp suffix
+'resume' appends data to the current log. 'new' does not override log by
+creating a new file adding a timestamp suffix
 '''
                         )
+    parser.add_argument('-tu', '--topic-uplink', metavar='ROSTOPIC',
+                        default='vrc/bits/remaining/uplink',
+                        help='Number of uplink bits remaining')
+    parser.add_argument('-td', '--topic-downlink', metavar='ROSTOPIC',
+                        default='vrc/bits/remaining/downlink',
+                        help='Number of downlink bits remaining')
     parser.add_argument('dev', metavar='DEVICE',
                         help='Device to attach the bit accounter (ex. eth0)')
     parser.add_argument('fc_ip', metavar='FIELD-COMPUTER-IP',
@@ -264,6 +319,8 @@ Defines the behavior after a new start/stop cycle. 'replace' overrides the log.
         sys.exit(1)
     arg_prefix = args.prefix
     arg_mode = args.mode
+    arg_rostopic_uplink = args.topic_uplink
+    arg_rostopic_downlink = args.topic_downlink
     arg_dev = args.dev
     args_fc_ip = args.fc_ip
     arg_uplink = args.uplink_bits_limit
@@ -272,4 +329,5 @@ Defines the behavior after a new start/stop cycle. 'replace' overrides the log.
     # Run the node
     bandwidth_count = BandwidthCount(arg_freq, arg_dir, arg_prefix,
                                      arg_mode, arg_dev, args_fc_ip,
-                                     arg_uplink, arg_downlink)
+                                     arg_uplink, arg_downlink,
+                                     arg_rostopic_uplink, arg_rostopic_downlink)
