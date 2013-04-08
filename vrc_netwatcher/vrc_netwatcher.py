@@ -40,8 +40,8 @@ DEFAULT_MAX_DOWNLINK = 'vrc/bytes/limit/downlink'
 # iptables rules
 UPLINK_IPTABLES_DROP = 'sudo iptables -I FORWARD -i tun0 -o eth0 -j DROP'
 DOWNLINK_IPTABLES_DROP = 'sudo iptables -I FORWARD -i eth0 -o tun0 -j DROP'
-UPLINK_IPTABLES_REMOVE = 'sudo iptables -I FORWARD -i tun0 -o eth0 -j DROP'
-DOWNLINK_IPTABLES_REMOVE = 'sudo iptables -I FORWARD -i eth0 -o tun0 -j DROP'
+UPLINK_IPTABLES_REMOVE = 'sudo iptables -D FORWARD -i tun0 -o eth0 -j DROP'
+DOWNLINK_IPTABLES_REMOVE = 'sudo iptables -D FORWARD -i eth0 -o tun0 -j DROP'
 
 # To check if netwatcher does a good job
 INTERNAL_LOG_FILE = '/tmp/vrc_netwatcher.log'
