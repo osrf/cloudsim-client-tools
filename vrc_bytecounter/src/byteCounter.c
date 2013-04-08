@@ -114,9 +114,9 @@ void count_bits(u_char *args, const struct pcap_pkthdr *header,
 	int total_header_length = 0;
 	int protocol_header_length = 0;
 	uint8_t fromFieldComputer;
-	redisReply *reply;
 #if UPDATE_REDIS_EVERY_X_SECONDS
 	uint64_t currentTime;
+	redisReply *reply;
 #endif
 
 	/*
@@ -229,11 +229,11 @@ void count_bits(u_char *args, const struct pcap_pkthdr *header,
 
 		/* Save the bandwidth numbers into redis*/
 
-    	reply = redisCommand(db,"SET %s %" PRIu64 "", "VRC_BytesToFC", totalDataBytesToField);
+    	reply = redisCommand(db,"SET %s %" PRIu64 "", "vrc/bytes/current/downlink", totalDataBytesToField);
     	//printf("SET (binary API): %s\n", reply->str);
     	freeReplyObject(reply);
 
-    	reply = redisCommand(db,"SET %s %" PRIu64 "", "VRC_BytesFromFC", totalDataBytesFromField);
+    	reply = redisCommand(db,"SET %s %" PRIu64 "", "vrc/bytes/current/uplink", totalDataBytesFromField);
     	//printf("SET (binary API): %s\n", reply->str);
     	freeReplyObject(reply);
 	}
@@ -283,12 +283,6 @@ int main(int argc, char *argv[])
 	sprintf(filter_exp, "ip host %s", inet_ntoa(fieldIP));
 
 	// Connect to Redis DB
-	/*connectDB(db);
-
-	// Set a value for testing
-	redisReply *reply;
-	reply = redisCommand(db, "SET foo bar");*/
-
     db = redisConnect((char*)"127.0.0.1", 6379);
     if (db == NULL || db->err) {
         if (db) {
@@ -344,11 +338,11 @@ int main(int argc, char *argv[])
 	printf("Field computer IP: %s\n", inet_ntoa(fieldIP));
 
 	// Reset the accounting
-	reply = redisCommand(db,"SET %s %" PRIu64 "", "VRC_BytesToFC", 0);
+	reply = redisCommand(db,"SET %s %" PRIu64 "", "vrc/bytes/current/uplink", 0);
     //printf("SET (binary API): %s\n", reply->str);
     freeReplyObject(reply);
 
-    reply = redisCommand(db,"SET %s %" PRIu64 "", "VRC_BytesFromFC", 0);
+    reply = redisCommand(db,"SET %s %" PRIu64 "", "vrc/bytes/current/downlink", 0);
     //printf("SET (binary API): %s\n", reply->str);
     freeReplyObject(reply);
 
