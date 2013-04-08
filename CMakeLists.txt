@@ -26,10 +26,6 @@ install(PROGRAMS vrc_shaping/tc/vrc_init_tc.py vrc_shaping/tc/vrc_configure_tc.p
 install(PROGRAMS vrc_shaping/tc/init_tc.py vrc_shaping/tc/configure_tc.py DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 install(PROGRAMS vrc_shaping/vrc_sniffer.py vrc_shaping/vrc_controller.py DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 
-# Install VRC netwatcher utilities:
-# VRC_netwatcher: Count and logging bandwidth when a specific start/stop ros topic is received
-install(PROGRAMS vrc_netwatcher/vrc_netwatcher.py DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
-
 ########################################
 # Package Creation: 
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Infrastructure for launching robotics simulations in the cloud")
