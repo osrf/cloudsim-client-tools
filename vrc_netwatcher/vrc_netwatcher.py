@@ -324,11 +324,11 @@ class Netwatcher:
 
                 # Publish comms stats as ROS topics
                 self.publish_remaining_bytes(inbound, self.max_uplink_key,
-                                            self.pub_uplink,
-                                            self.topic_uplink)
+                                             self.pub_uplink,
+                                             self.topic_uplink)
                 self.publish_remaining_bytes(outbound, self.max_downlink_key,
-                                            self.pub_downlink,
-                                            self.topic_downlink)
+                                             self.pub_downlink,
+                                             self.topic_downlink)
         except Exception, excep:
             self.logger.error('%s(): Exception captured:\n\t%s'
                               % ('update_counting()', excep))
