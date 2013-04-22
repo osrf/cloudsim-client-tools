@@ -6,7 +6,7 @@
 
 set -e
 
-USAGE="create_drcsim_workspace.sh <srcdir> [<install_prefix>]"
+USAGE="create_drcsim_workspace.sh <srcdir> [<install_prefix>] [<ros_distro>]"
 
 if [ $# -lt 1 ]; then
   echo $USAGE
@@ -26,7 +26,7 @@ fi
 set -x
 
 ROSINSTALL_FILE_URL=https://bitbucket.org/osrf/cloudsim-client-tools/raw/default/tools/drcsim.rosinstall
-ROSDISTRO=fuerte
+ROSDISTRO=${3-fuerte}
 MAKE_J=-j16
 
 # add ROS repo
@@ -41,7 +41,7 @@ sudo apt-get update
 # Install pre-reqs, which were gathered from the debian/control files in the
 # various -release repositories
 # avr-gcc avr-libc 
-sudo apt-get install -y cmake freeglut3-dev libavcodec-dev libavformat-dev libboost-dev libboost-filesystem-dev libboost-iostreams-dev libboost-program-options-dev libboost-regex-dev libboost-signals-dev libboost-system-dev libboost-thread-dev libbullet-dev libcegui-mk2-dev libcurl4-openssl-dev libfreeimage-dev libltdl-dev libogre-dev libprotobuf-dev libprotoc-dev libqt4-dev libswscale-dev libtar-dev libtbb-dev libtinyxml-dev libxml2-dev mercurial osrf-common pkg-config protobuf-compiler robot-player-dev ros-fuerte-common-msgs ros-fuerte-console-bridge ros-fuerte-geometry ros-fuerte-geometry-experimental ros-fuerte-image-common ros-fuerte-image-pipeline ros-fuerte-pr2-controllers ros-fuerte-pr2-mechanism ros-fuerte-robot-model-visualization ros-fuerte-ros ros-fuerte-ros-comm ros-fuerte-std-msgs ros-fuerte-urdfdom ros-fuerte-xacro
+sudo apt-get install -y cmake freeglut3-dev libavcodec-dev libavformat-dev libboost-dev libboost-filesystem-dev libboost-iostreams-dev libboost-program-options-dev libboost-regex-dev libboost-signals-dev libboost-system-dev libboost-thread-dev libbullet-dev libcegui-mk2-dev libcurl4-openssl-dev libfreeimage-dev libltdl-dev libogre-dev libprotobuf-dev libprotoc-dev libqt4-dev libswscale-dev libtar-dev libtbb-dev libtinyxml-dev libxml2-dev mercurial osrf-common pkg-config protobuf-compiler robot-player-dev ros-${ROSDISTRO}-common-msgs ros-${ROSDISTRO}-console-bridge ros-${ROSDISTRO}-geometry ros-${ROSDISTRO}-geometry-experimental ros-${ROSDISTRO}-image-common ros-${ROSDISTRO}-image-pipeline ros-${ROSDISTRO}-pr2-controllers ros-${ROSDISTRO}-pr2-mechanism ros-${ROSDISTRO}-robot-model-visualization ros-${ROSDISTRO}-ros ros-${ROSDISTRO}-ros-comm ros-${ROSDISTRO}-std-msgs ros-${ROSDISTRO}-urdfdom ros-${ROSDISTRO}-xacro
 
 # Check out everything
 sudo apt-get install -y python-pip
