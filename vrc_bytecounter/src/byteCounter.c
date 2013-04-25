@@ -50,24 +50,28 @@
 
 #define UDP_HEADER_LENGTH 8
 
-struct in_addr fieldIP; /* Field computer IP */
+/* Redis key for storing the current byte usage */
+static const char REDIS_UPLINK_KEY[] = "vrc/bytes/current/uplink";
+static const char REDIS_DOWNLINK_KEY[] = "vrc/bytes/current/downlink";
+
+struct in_addr ocuIP; /* OCU IP */
 uint32_t totalPackets = 0;
 
-uint32_t ipPacketsToField = 0;
-uint32_t ipPacketsFromField = 0;
+uint32_t ipPacketsToOCU = 0;
+uint32_t ipPacketsFromOCU = 0;
 
-uint32_t tcpPacketsToField = 0;
-uint32_t udpPacketsToField = 0;
-uint32_t otherPacketsToField = 0;
+uint32_t tcpPacketsToOCU = 0;
+uint32_t udpPacketsToOCU = 0;
+uint32_t otherPacketsToOCU = 0;
 
-uint32_t tcpPacketsFromField = 0;
-uint32_t udpPacketsFromField = 0;
-uint32_t otherPacketsFromField = 0;
+uint32_t tcpPacketsFromOCU = 0;
+uint32_t udpPacketsFromOCU = 0;
+uint32_t otherPacketsFromOCU = 0;
 
 uint64_t totalLength = 0;
 
-uint64_t totalDataBytesToField = 0;
-uint64_t totalDataBytesFromField = 0;
+uint64_t totalDataBytesToOCU = 0;
+uint64_t totalDataBytesFromOCU = 0;
 
 redisContext *db; /* Redis database */
 
@@ -85,24 +89,24 @@ uint64_t getTimeInMilliSeconds()
 void print_stats()
 {
 	printf("\n\nCaptured %d packets\n", totalPackets);
-	printf(" * %d IP packets sent from field computer\n", ipPacketsFromField);
-	printf("   * %d TCP packets\n", tcpPacketsFromField);
-	printf("   * %d UDP packets\n", udpPacketsFromField);
-	printf("   * %d other packets\n", otherPacketsFromField);
-	printf(" * %d IP packets sent to field computer\n", ipPacketsToField);
-	printf("   * %d TCP packets\n", tcpPacketsToField);
-	printf("   * %d UDP packets\n", udpPacketsToField);
-	printf("   * %d other packets\n", otherPacketsToField);
+	printf(" * %d IP packets sent from OCU\n", ipPacketsFromOCU);
+	printf("   * %d TCP packets\n", tcpPacketsFromOCU);
+	printf("   * %d UDP packets\n", udpPacketsFromOCU);
+	printf("   * %d other packets\n", otherPacketsFromOCU);
+	printf(" * %d IP packets sent to OCU\n", ipPacketsToOCU);
+	printf("   * %d TCP packets\n", tcpPacketsToOCU);
+	printf("   * %d UDP packets\n", udpPacketsToOCU);
+	printf("   * %d other packets\n", otherPacketsToOCU);
 
 	printf("\n");
 
 	printf("Number of total bytes sent: %lld bytes\n", (long long) totalLength);
 	printf("Number of data bytes sent: %lld bytes\n",
-			(long long) (totalDataBytesFromField + totalDataBytesToField));
-	printf(" * %lld downlink bytes from field computer\n",
-			(long long) totalDataBytesFromField);
-	printf(" * %lld uplink bytes to field computer\n",
-			(long long) totalDataBytesToField);
+			(long long) (totalDataBytesFromOCU + totalDataBytesToOCU));
+	printf(" * %lld uplink bytes from OCU\n",
+			(long long) totalDataBytesFromOCU);
+	printf(" * %lld downlink bytes to OCU\n",
+			(long long) totalDataBytesToOCU);
 }
 
 void count_bits(u_char *args, const struct pcap_pkthdr *header,
@@ -113,7 +117,7 @@ void count_bits(u_char *args, const struct pcap_pkthdr *header,
 	int size_ip = 0;
 	int total_header_length = 0;
 	int protocol_header_length = 0;
-	uint8_t fromFieldComputer;
+	uint8_t fromOCUComputer;
 #if UPDATE_REDIS_EVERY_X_SECONDS
 	uint64_t currentTime;
 	redisReply *reply;
@@ -140,15 +144,15 @@ void count_bits(u_char *args, const struct pcap_pkthdr *header,
 	/* This is an IP Packet, add to number of IP packets */
 	total_header_length += size_ip;
 
-	if (ip->ip_src.s_addr == fieldIP.s_addr)
+	if (ip->ip_src.s_addr == ocuIP.s_addr)
 	{
-		fromFieldComputer = 1;
-		ipPacketsFromField++;
+		fromOCUComputer = 1;
+		ipPacketsFromOCU++;
 	}
-	else if (ip->ip_dst.s_addr == fieldIP.s_addr)
+	else if (ip->ip_dst.s_addr == ocuIP.s_addr)
 	{
-		fromFieldComputer = 0;
-		ipPacketsToField++;
+		fromOCUComputer = 0;
+		ipPacketsToOCU++;
 	}
 	else
 	{
@@ -169,38 +173,38 @@ void count_bits(u_char *args, const struct pcap_pkthdr *header,
 		}
 		else
 		{
-			if (fromFieldComputer)
+			if (fromOCUComputer)
 			{
-				tcpPacketsFromField++;
+				tcpPacketsFromOCU++;
 			}
 			else
 			{
-				tcpPacketsToField++;
+				tcpPacketsToOCU++;
 			}
 		}
 		break;
 	case IPPROTO_UDP:
 		/* UDP header is always 8 bytes */
 		protocol_header_length = UDP_HEADER_LENGTH;
-		if (fromFieldComputer)
+		if (fromOCUComputer)
 		{
-			udpPacketsFromField++;
+			udpPacketsFromOCU++;
 		}
 		else
 		{
-			udpPacketsToField++;
+			udpPacketsToOCU++;
 		}
 		break;
 	default:
 		/* For all other protocols, count all bits */
 		protocol_header_length = 0;
-		if (fromFieldComputer)
+		if (fromOCUComputer)
 		{
-			otherPacketsFromField++;
+			otherPacketsFromOCU++;
 		}
 		else
 		{
-			otherPacketsToField++;
+			otherPacketsToOCU++;
 		}
 		break;
 	}
@@ -210,13 +214,13 @@ void count_bits(u_char *args, const struct pcap_pkthdr *header,
 	 */
 	total_header_length += protocol_header_length;
 
-	if (fromFieldComputer)
+	if (fromOCUComputer)
 	{
-		totalDataBytesFromField += (header->len - total_header_length);
+		totalDataBytesFromOCU += (header->len - total_header_length);
 	}
 	else
 	{
-		totalDataBytesToField += (header->len - total_header_length);
+		totalDataBytesToOCU += (header->len - total_header_length);
 	}
 	
 	/* Update Redis */
@@ -227,13 +231,13 @@ void count_bits(u_char *args, const struct pcap_pkthdr *header,
 		print_stats();
 		lastPrintTime = currentTime;
 
-		/* Save the bandwidth numbers into redis*/
+	/* Save the bandwidth numbers into redis*/
 
-    	reply = redisCommand(db,"SET %s %" PRIu64 "", "vrc/bytes/current/downlink", totalDataBytesToField);
+    	reply = redisCommand(db,"SET %s %" PRIu64 "", REDIS_DOWNLINK_KEY, totalDataBytesToOCU);
     	//printf("SET (binary API): %s\n", reply->str);
     	freeReplyObject(reply);
 
-    	reply = redisCommand(db,"SET %s %" PRIu64 "", "vrc/bytes/current/uplink", totalDataBytesFromField);
+    	reply = redisCommand(db,"SET %s %" PRIu64 "", REDIS_UPLINK_KEY, totalDataBytesFromOCU);
     	//printf("SET (binary API): %s\n", reply->str);
     	freeReplyObject(reply);
 	}
@@ -263,7 +267,7 @@ int main(int argc, char *argv[])
 
 	if (argc != 3)
 	{
-		printf("Usage: bitCounter [device] [fieldIP]\n");
+		printf("Usage: bitCounter [device] [ocuIP]\n");
 		dev = pcap_lookupdev(errbuf);
 		if (dev == NULL )
 		{
@@ -276,23 +280,23 @@ int main(int argc, char *argv[])
 	}
 
 	dev = argv[1];
-	inet_aton(argv[2], &fieldIP);
+	inet_aton(argv[2], &ocuIP);
 
 	filter_exp = malloc(strlen(argv[2]) + 10);
 
-	sprintf(filter_exp, "ip host %s", inet_ntoa(fieldIP));
+	sprintf(filter_exp, "ip host %s", inet_ntoa(ocuIP));
 
 	// Connect to Redis DB
-    db = redisConnect((char*)"127.0.0.1", 6379);
-    if (db == NULL || db->err) {
-        if (db) {
-            printf("Connection error: %s\n", db->errstr);
-            redisFree(db);
-        } else {
-            printf("Connection error: can't allocate redis context\n");
-        }
-        exit(1);
-    }    
+	db = redisConnect((char*)"127.0.0.1", 6379);
+    	if (db == NULL || db->err) {
+        	if (db) {
+            		printf("Connection error: %s\n", db->errstr);
+            		redisFree(db);
+        	} else {
+            		printf("Connection error: can't allocate redis context\n");
+        	}
+        	exit(1);
+    	}
 
 	/* Query netmask and ip address from interface */
 	if (pcap_lookupnet(dev, &net, &mask, errbuf) == -1)
@@ -335,16 +339,16 @@ int main(int argc, char *argv[])
 	}
 
 	printf("Using device: %s\n", dev);
-	printf("Field computer IP: %s\n", inet_ntoa(fieldIP));
+	printf("OCU IP: %s\n", inet_ntoa(ocuIP));
 
 	// Reset the accounting
-	reply = redisCommand(db,"SET %s %" PRIu64 "", "vrc/bytes/current/uplink", 0);
-    //printf("SET (binary API): %s\n", reply->str);
-    freeReplyObject(reply);
+	reply = redisCommand(db,"SET %s %" PRIu64 "", REDIS_UPLINK_KEY, 0);
+    	//printf("SET (binary API): %s\n", reply->str);
+    	freeReplyObject(reply);
 
-    reply = redisCommand(db,"SET %s %" PRIu64 "", "vrc/bytes/current/downlink", 0);
-    //printf("SET (binary API): %s\n", reply->str);
-    freeReplyObject(reply);
+	reply = redisCommand(db,"SET %s %" PRIu64 "", REDIS_DOWNLINK_KEY, 0);
+	//printf("SET (binary API): %s\n", reply->str);
+	freeReplyObject(reply);
 
 	signal(SIGINT, quit);	
 
