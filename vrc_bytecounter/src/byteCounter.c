@@ -34,7 +34,6 @@
 #include <signal.h>
 #include <arpa/inet.h>
 #include <sys/time.h>
-#include <stdbool.h>
 
 #include "ethernet.h"
 #include "ip.h"
