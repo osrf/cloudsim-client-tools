@@ -26,9 +26,10 @@ install(PROGRAMS vrc_shaping/tc/vrc_init_tc.py vrc_shaping/tc/vrc_configure_tc.p
 install(PROGRAMS vrc_shaping/tc/init_tc.py vrc_shaping/tc/configure_tc.py DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 install(PROGRAMS vrc_shaping/vrc_sniffer.py vrc_shaping/vrc_controller.py DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 
-# Install VRC netwatcher utilities:
+# Install VRC bandwidth utilities:
+# VRC_bandwidth: Count and logging bandwidth when a specific start/stop ros topic is received
 # VRC_netwatcher: Count and logging bandwidth when a specific start/stop ros topic is received
-install(PROGRAMS vrc_netwatcher/vrc_netwatcher.py DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+install(PROGRAMS vrc_bandwidth/vrc_bandwidth.py vrc_netwatcher/vrc_netwatcher.py DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 
 ########################################
 # Package Creation: 
