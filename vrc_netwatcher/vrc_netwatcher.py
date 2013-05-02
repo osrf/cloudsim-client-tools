@@ -32,6 +32,10 @@ DEFAULT_MAX_DOWNLINK = 'vrc/bytes/limit/downlink'
 INTERNAL_LOG_FILE = '/tmp/vrc_netwatcher.log'
 FALLBACK_LOG_FILE = '~/vrc_netwatcher.log'
 
+# Range of IP addresses to enable/disable
+INITIAL_IP_RANGE = '10.0.0.51'
+END_IP_RANGE = '10.0.0.53'
+
 # If ROS is not installed && sourced, that will fail
 try:
     import rospy
@@ -58,7 +62,7 @@ class Netwatcher:
     """
 
     def __init__(self, freq, directory, prefix, mode, topic_start, topic_stop,
-                 topic_uplink, topic_downlink, private_NIC, tunnel_NIC,
+                 topic_uplink, topic_downlink,
                  max_uplink_key, max_downlink_key,
                  current_uplink_key, current_downlink_key, outage, log_level):
         """
@@ -72,8 +76,6 @@ class Netwatcher:
         @param topic_stop: ROS topic that stops the current log session
         @param topic_uplink: ROS topic to publish remaining uplink bytes
         @param topic_downlink: ROS topic to publish remaining downlink bytes
-        @param private_NIC: NIC used for the private network
-        @param tunnel_NIC: NIC used for the tunneled connection with the OCU
         @param max_uplink_key: DB key that stores the maximum uplink bytes
         @param max_downlink_key: DB key that stores the maximum downlink bytes
         @param current_uplink_key: DB key that stores the current uplink bytes
@@ -89,8 +91,6 @@ class Netwatcher:
         self.topic_stop = topic_stop
         self.topic_uplink = topic_uplink
         self.topic_downlink = topic_downlink
-        self.priv_NIC = private_NIC
-        self.tun_NIC = tunnel_NIC
         self.max_uplink_key = max_uplink_key
         self.max_downlink_key = max_downlink_key
         self.current_uplink_key = current_uplink_key
@@ -98,18 +98,18 @@ class Netwatcher:
         self.outage = outage
 
         # iptables rules
-        self.UPLINK_IPTABLES_DROP = ('sudo iptables -I FORWARD -i ' +
-                                     self.tun_NIC + ' -o ' + self.priv_NIC +
-                                     ' -j DROP')
-        self.DOWNLINK_IPTABLES_DROP = ('sudo iptables -I FORWARD -i ' +
-                                       self.priv_NIC + ' -o ' + self.tun_NIC +
-                                       ' -j DROP')
-        self.UPLINK_IPTABLES_REMOVE = ('sudo iptables -D FORWARD -i ' +
-                                       self.tun_NIC + ' -o ' + self.priv_NIC +
-                                       ' -j DROP')
-        self.DOWNLINK_IPTABLES_REMOVE = ('sudo iptables -D FORWARD -i ' +
-                                         self.priv_NIC + ' -o ' + self.tun_NIC +
-                                         ' -j DROP')
+        self.UPLINK_IPTABLES_DROP = ('sudo iptables -A FORWARD -m iprange '
+                                     '--dst-range ' + INITIAL_IP_RANGE + '-' +
+                                     END_IP_RANGE + ' -j DROP')
+        self.DOWNLINK_IPTABLES_DROP = ('sudo iptables -A FORWARD -m iprange '
+                                       '--src-range ' + INITIAL_IP_RANGE + '-' +
+                                       END_IP_RANGE + ' -j DROP')
+        self.UPLINK_IPTABLES_REMOVE = ('sudo iptables -D FORWARD -m iprange '
+                                       '--dst-range ' + INITIAL_IP_RANGE + '-' +
+                                       END_IP_RANGE + ' -j DROP')
+        self.DOWNLINK_IPTABLES_REMOVE = ('sudo iptables -D FORWARD -m iprange '
+                                         '--src-range ' + INITIAL_IP_RANGE + '-' +
+                                         END_IP_RANGE + ' -j DROP')
 
         rospy.init_node('VRC_netwatcher', anonymous=True)
 
@@ -498,10 +498,6 @@ if __name__ == '__main__':
                         help='ROS topic to publish remaining downlink bytes')
 
     # Byte accounting options
-    parser.add_argument('private_NIC',
-                        help='NIC used for the private network')
-    parser.add_argument('tunnel_NIC',
-                        help='NIC used for the tunneled connection with the OCU')
     parser.add_argument('-kmu', '--max-uplink-key',
                         metavar='MAXIMUM-UPLINK-REDIS-KEY',
                         default=DEFAULT_MAX_UPLINK,
@@ -544,8 +540,6 @@ if __name__ == '__main__':
     arg_rostopic_stop = args.topic_stop
     arg_rostopic_uplink = args.topic_uplink
     arg_rostopic_downlink = args.topic_downlink
-    arg_private_NIC = args.private_NIC
-    arg_tunnel_NIC = args.tunnel_NIC
     arg_max_uplink_key = args.max_uplink_key
     arg_max_downlink_key = args.max_downlink_key
     arg_current_uplink_key = args.current_uplink_key
@@ -557,7 +551,6 @@ if __name__ == '__main__':
     netwatcher = Netwatcher(arg_freq, arg_dir, arg_prefix, arg_mode,
                             arg_rostopic_start, arg_rostopic_stop,
                             arg_rostopic_uplink, arg_rostopic_downlink,
-                            arg_private_NIC, arg_tunnel_NIC,
                             arg_max_uplink_key, arg_max_downlink_key,
                             arg_current_uplink_key, arg_current_downlink_key,
                             arg_outage, arg_log)
