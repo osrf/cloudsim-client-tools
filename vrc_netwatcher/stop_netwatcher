@@ -20,8 +20,6 @@ then
    exit 1
 fi
 
-echo $STOP_TOPIC
-
 . /opt/ros/fuerte/setup.sh
 rostopic pub -1 $STOP_TOPIC std_msgs/Empty > /dev/null
 echo "[stop_netwatcher]: Stop message sent"
