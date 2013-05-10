@@ -2,7 +2,7 @@
 
 # Set the private environment for testing the VRC contest
 
-USAGE="Usage: set_vrc_private.sh [-v] <bitbucket_key>"
+USAGE="Usage: set_vrc_private.sh <bitbucket_key>"
 
 if [ $# -ne 1 ]; then
   echo $USAGE
@@ -10,7 +10,6 @@ if [ $# -ne 1 ]; then
 fi
 
 # Constants
-USER=caguero
 GAZEBO_MODELS_NAME=gazebo_models
 GAZEBO_INSTALL_DIR=/home/$USER/.gazebo
 VRC_ARENAS_NAME=vrc_arenas
@@ -38,6 +37,7 @@ install ()
 
 TMP_DIR=`mktemp -d`
 KEY=`pwd $1`/$1
+USER=`whoami`
 
 # gazebo_models
 install $GAZEBO_MODELS_NAME $GAZEBO_INSTALL_DIR $KEY
