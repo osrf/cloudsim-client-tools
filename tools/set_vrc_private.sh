@@ -21,9 +21,11 @@ DRCSIM_SETUP=/usr/local/share/drcsim/setup.sh
 # arg3: ssh bitbucket key
 install ()
 {
+    # Temporal directory for the repository
+    TMP_DIR=`mktemp -d`
     cd $TMP_DIR
+   
     echo -n "Downloading $1..."
-
     hg clone -e "ssh -i $3" ssh://hg@bitbucket.org/osrf/$1 > /dev/null
     echo "Done"
     cd $1
@@ -33,11 +35,13 @@ install ()
     cmake .. -DCMAKE_INSTALL_PREFIX=$2 > /dev/null
     make install > /dev/null 2>&1
     echo "Done"
+
+    # Remove temp dir
+    rm -rf $TMP_DIR
 }
 
-TMP_DIR=`mktemp -d`
+
 KEY=`pwd $1`/$1
-USER=`whoami`
 
 # gazebo_models
 install $GAZEBO_MODELS_NAME $GAZEBO_INSTALL_DIR $KEY
@@ -48,6 +52,3 @@ install $VRC_ARENAS_NAME $VRC_ARENA_INSTALL_DIR $KEY
 # Add private vrc_arenas setup.sh to the drcsim setup.sh if possible
 echo -e "\nReady. Do not forget to source the new VRC Arena:"
 echo -e "\t. $VRC_ARENA_INSTALL_DIR/share/vrc_arenas/setup.sh"
-
-# Remove temp dir
-rm -rf $TMP_DIR
