@@ -26,13 +26,13 @@ install ()
     cd $TMP_DIR
    
     echo -n "Downloading $1..."
-    hg clone -e "ssh -i $3" ssh://hg@bitbucket.org/osrf/$1 > /dev/null
+    hg clone -e "ssh -o StrictHostKeyChecking=no -i $3" ssh://hg@bitbucket.org/osrf/$1
     echo "Done"
     cd $1
     mkdir build
     cd build
     echo -n "Installing $1..."
-    cmake .. -DCMAKE_INSTALL_PREFIX=$2 > /dev/null
+    cmake .. -DCMAKE_INSTALL_PREFIX=$2
     make install > /dev/null 2>&1
     echo "Done"
 
@@ -41,7 +41,7 @@ install ()
 }
 
 
-KEY=`pwd $1`/$1
+KEY=$1
 
 # gazebo_models
 install $GAZEBO_MODELS_NAME $GAZEBO_INSTALL_DIR $KEY
