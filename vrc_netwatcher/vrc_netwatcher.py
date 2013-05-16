@@ -28,6 +28,7 @@ DEFAULT_CURRENT_DOWNLINK = 'vrc/bytes/current/downlink'
 DEFAULT_MAX_UPLINK = 'vrc/bytes/limit/uplink'
 DEFAULT_MAX_DOWNLINK = 'vrc/bytes/limit/downlink'
 DEFAULT_SCORE = '/vrc_score'
+DEFAULT_ELAPSED_TIME = 'vrc/seconds/wt_elapsed'
 
 # To check if netwatcher does a good job
 INTERNAL_LOG_FILE = '/tmp/vrc_netwatcher.log'
@@ -40,11 +41,14 @@ END_IP_RANGE = '10.0.0.53'
 # Score file name
 NETWORK_SCORE_FILE = 'network_score.log'
 
+# Period of ROS topic publication
+ROS_PUB_PERIOD = 1.0
+
 # If ROS is not installed && sourced, that will fail
 try:
     import roslib; roslib.load_manifest('atlas_msgs')
     import rospy
-    from std_msgs.msg import String, Empty
+    from std_msgs.msg import String, Empty, Float
     from atlas_msgs.msg import VRCScore
 except ImportError:
     logging.basicConfig(filename=INTERNAL_LOG_FILE, level=logging.INFO)
@@ -69,7 +73,7 @@ class Netwatcher:
 
     def __init__(self, freq, directory, prefix, mode, score_file, topic_start,
                  topic_stop, topic_uplink, topic_downlink, topic_score,
-                 max_uplink_key, max_downlink_key,
+                 topic_wt_elapsed, max_uplink_key, max_downlink_key,
                  current_uplink_key, current_downlink_key, outage, log_level):
         """
         Constructor.
@@ -84,6 +88,7 @@ class Netwatcher:
         @param topic_uplink: ROS topic to publish remaining uplink bytes
         @param topic_downlink: ROS topic to publish remaining downlink bytes
         @param topic_score: ROS topic where all the scoring data is published
+        @param topic_wt_elapsed: ROS topic showing the elapsed task wall time
         @param max_uplink_key: DB key that stores the maximum uplink bytes
         @param max_downlink_key: DB key that stores the maximum downlink bytes
         @param current_uplink_key: DB key that stores the current uplink bytes
@@ -101,11 +106,18 @@ class Netwatcher:
         self.topic_uplink = topic_uplink
         self.topic_downlink = topic_downlink
         self.topic_score = topic_score
+        self.wt_elapsed = topic_wt_elapsed
         self.max_uplink_key = max_uplink_key
         self.max_downlink_key = max_downlink_key
         self.current_uplink_key = current_uplink_key
         self.current_downlink_key = current_downlink_key
         self.outage = outage
+
+        # Wall clockwatch
+        self.start_time = time.time()
+
+        self.inbound = 0
+        self.outbound = 0
 
         # iptables rules
         self.UPLINK_IPTABLES_DROP = ('sudo iptables -A FORWARD -m iprange '
@@ -137,15 +149,19 @@ class Netwatcher:
         self.is_uplink_active = True
         self.is_downlink_active = True
 
-        # Publishers for the remaining bytes allowed
+        # Publishers
         self.pub_uplink = rospy.Publisher(self.topic_uplink, String)
         self.pub_downlink = rospy.Publisher(self.topic_downlink, String)
+        self.pub_elapsed = rospy.Publisher(topic_wt_elapsed, Float)
 
         # Subscribe to the topics to start and stop the counting/logging
         rospy.Subscriber(self.topic_score, VRCScore, self.start_counting)
 
         # Initialize internal log file
         self.init_internal_log(log_level)
+
+        # Publish ROS topics every second
+        self.pub_timer = rospy.Timer(ROS_PUB_PERIOD, self.publish_ros_topics)
 
         rospy.spin()
 
@@ -326,6 +342,18 @@ class Netwatcher:
         self.logger.info('New ROS messages published:\n'
                          '\t%s: %s\n' % (topic, remaining))
 
+    def publish_ros_topics(self):
+        with self.mutex:
+            # Remaining bytes
+            self.publish_remaining_bytes(self.inbound, self.max_uplink_key,
+                                         self.pub_uplink, self.topic_uplink)
+            self.publish_remaining_bytes(self.outbound, self.max_downlink_key,
+                                         self.pub_downlink, self.topic_downlink)
+
+            # Time elapsed since the beginning og the task
+            elapsed = time.time() - self.start_time
+            self.pub_elapsed.publish(float(elapsed))
+
     def update_counting(self, data):
         """
         Callback periodically called by ROS to update the counting/logging.
@@ -353,14 +381,15 @@ class Netwatcher:
                                          self.DOWNLINK_IPTABLES_DROP):
                     self.is_downlink_active = False
 
-                # Publish comms stats as ROS topics
+                '''# Publish comms stats as ROS topics
                 self.publish_remaining_bytes(self.inbound, self.max_uplink_key,
                                              self.pub_uplink,
                                              self.topic_uplink)
                 self.publish_remaining_bytes(self.outbound,
                                              self.max_downlink_key,
                                              self.pub_downlink,
-                                             self.topic_downlink)
+                                             self.topic_downlink)'''
+
         except Exception, excep:
             self.logger.error('%s(): Exception captured:\n\t%s'
                               % ('update_counting()', excep))
@@ -541,6 +570,9 @@ if __name__ == '__main__':
     parser.add_argument('-ts', '--topic-score', metavar='ROSTOPIC',
                         default=DEFAULT_SCORE,
                         help='ROS topic where the scoring data is published')
+    parser.add_argument('-te', '--topic-wt-elapsed', metavar='ROSTOPIC',
+                        default=DEFAULT_ELAPSED_TIME,
+                        help='ROS topic showing the elapsed task wall time')
 
     # Byte accounting options
     parser.add_argument('-kmu', '--max-uplink-key',
@@ -587,6 +619,7 @@ if __name__ == '__main__':
     arg_rostopic_uplink = args.topic_uplink
     arg_rostopic_downlink = args.topic_downlink
     arg_rostopic_score = args.topic_score
+    arg_rostopic_wt_elapsed = args.topic_wt_elapsed
     arg_max_uplink_key = args.max_uplink_key
     arg_max_downlink_key = args.max_downlink_key
     arg_current_uplink_key = args.current_uplink_key
@@ -599,6 +632,7 @@ if __name__ == '__main__':
                             arg_score_file,
                             arg_rostopic_start, arg_rostopic_stop,
                             arg_rostopic_uplink, arg_rostopic_downlink,
-                            arg_rostopic_score, arg_max_uplink_key,
-                            arg_max_downlink_key, arg_current_uplink_key,
-                            arg_current_downlink_key, arg_outage, arg_log)
+                            arg_rostopic_score, arg_rostopic_wt_elapsed,
+                            arg_max_uplink_key, arg_max_downlink_key,
+                            arg_current_uplink_key, arg_current_downlink_key,
+                            arg_outage, arg_log)
