@@ -143,8 +143,6 @@ class Netwatcher:
 
         # Subscribe to the topics to start and stop the counting/logging
         rospy.Subscriber(self.topic_score, VRCScore, self.start_counting)
-        rospy.Subscriber(self.topic_start, Empty, self.start_counting_wrapper)
-        rospy.Subscriber(self.topic_stop, Empty, self.stop_counting)
 
         # Initialize internal log file
         self.init_internal_log(log_level)
@@ -261,6 +259,7 @@ class Netwatcher:
             new_line = (tstamp + ' ' + simclock + ' ' + self.inbound +
                         ' ' + self.outbound + '\n')
             logf.write(new_line)
+            logf.flush()
             self.logger.debug('New line written in %s:\n\t%s'
                               % (self.fullpathname, new_line))
 
@@ -280,7 +279,10 @@ class Netwatcher:
         """
         # Get the maximum bytes allowed
         max_link = self.db.get(max_key)
-        self.check_rediskey_long(max_key, max_link, 'is_limit_reached()')
+        try:
+            self.check_rediskey_long(max_key, max_link, 'is_limit_reached()')
+        except Exception, excep:
+            max_link = sys.maxint
 
         self.logger.debug('is_limit_reached():\n'
                           '\t%s: %s / %s\n' % (label, current, max_link))
@@ -313,7 +315,10 @@ class Netwatcher:
         """
         # Get the maximum bytes allowed
         max_link = self.db.get(max_key)
-        self.check_rediskey_long(max_key, max_link, 'publish_remaining_bytes()')
+        try:
+            self.check_rediskey_long(max_key, max_link, 'publish_remaining_bytes()')
+        except Exception, excep:
+            max_link = sys.maxint
 
         remaining = max(0, long(max_link) - long(current))
 

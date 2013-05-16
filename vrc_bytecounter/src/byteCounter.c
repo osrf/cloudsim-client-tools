@@ -303,7 +303,8 @@ int main(int argc, char *argv[])
     filter_exp = malloc(MAX_FILTER_EXP_SIZE);
 
     // Filter any IP packet between (SIM, FC1 or FC2) and any host except ROUTER 
-    sprintf(filter_exp, "ip host (%s or %s or %s) and not %s", SIM, FC1, FC2, ROUTER);
+    // Also remove NTP and DNS packets to or from SIM.
+    sprintf(filter_exp, "(ip host (%s or %s or %s) and not %s) and (not port 53 or not host %s) and (not port ntp or not host %s)", SIM, FC1, FC2, ROUTER, SIM, SIM);
 
     // Connect to Redis DB
     db = redisConnect((char*)"127.0.0.1", 6379);
