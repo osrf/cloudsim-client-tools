@@ -41,8 +41,6 @@ END_IP_RANGE = '10.0.0.53'
 # Score file name
 NETWORK_SCORE_FILE = 'network_score.log'
 
-# Period of ROS topic publication
-ROS_PUB_PERIOD = 1.0
 
 # If ROS is not installed && sourced, that will fail
 try:
@@ -161,7 +159,7 @@ class Netwatcher:
         self.init_internal_log(log_level)
 
         # Publish ROS topics every second
-        self.pub_timer = rospy.Timer(ROS_PUB_PERIOD, self.publish_ros_topics)
+        self.pub_timer = rospy.Timer(1.0, self.publish_ros_topics)
 
         rospy.spin()
 
