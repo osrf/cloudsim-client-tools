@@ -29,6 +29,11 @@ DEFAULT_MAX_UPLINK = 'vrc/bytes/limit/uplink'
 DEFAULT_MAX_DOWNLINK = 'vrc/bytes/limit/downlink'
 DEFAULT_SCORE = '/vrc_score'
 DEFAULT_ELAPSED_TIME = 'vrc/seconds/wt_elapsed'
+DEFAULT_REMAINING_TIME = 'vrc/seconds/wt_remaining'
+
+# Tasks
+DEFAULT_TASK_MAX_TIME = 1800
+
 
 # To check if netwatcher does a good job
 INTERNAL_LOG_FILE = '/tmp/vrc_netwatcher.log'
@@ -46,7 +51,7 @@ NETWORK_SCORE_FILE = 'network_score.log'
 try:
     import roslib; roslib.load_manifest('atlas_msgs')
     import rospy
-    from std_msgs.msg import String, Empty, Float
+    from std_msgs.msg import String, Empty, Int32
     from atlas_msgs.msg import VRCScore
 except ImportError:
     logging.basicConfig(filename=INTERNAL_LOG_FILE, level=logging.INFO)
@@ -71,8 +76,9 @@ class Netwatcher:
 
     def __init__(self, freq, directory, prefix, mode, score_file, topic_start,
                  topic_stop, topic_uplink, topic_downlink, topic_score,
-                 topic_wt_elapsed, max_uplink_key, max_downlink_key,
-                 current_uplink_key, current_downlink_key, outage, log_level):
+                 topic_wt_elapsed, topic_wt_remaining, max_task_time, max_uplink_key,
+                 max_downlink_key, current_uplink_key, current_downlink_key,
+                 outage, log_level):
         """
         Constructor.
 
@@ -87,6 +93,8 @@ class Netwatcher:
         @param topic_downlink: ROS topic to publish remaining downlink bytes
         @param topic_score: ROS topic where all the scoring data is published
         @param topic_wt_elapsed: ROS topic showing the elapsed task wall time
+        @param topic_wt_remaining: ROS topic showing the remaining task wall time
+        @param max_task_time: Max. number of seconds to finish the task
         @param max_uplink_key: DB key that stores the maximum uplink bytes
         @param max_downlink_key: DB key that stores the maximum downlink bytes
         @param current_uplink_key: DB key that stores the current uplink bytes
@@ -105,6 +113,8 @@ class Netwatcher:
         self.topic_downlink = topic_downlink
         self.topic_score = topic_score
         self.wt_elapsed = topic_wt_elapsed
+        self.wt_remaining = topic_wt_remaining
+        self.max_task_time = max_task_time
         self.max_uplink_key = max_uplink_key
         self.max_downlink_key = max_downlink_key
         self.current_uplink_key = current_uplink_key
@@ -112,7 +122,7 @@ class Netwatcher:
         self.outage = outage
 
         # Wall clockwatch
-        self.start_time = time.time()
+        self.start_time = rospy.Time.from_sec(time.time())
 
         self.inbound = 0
         self.outbound = 0
@@ -150,7 +160,8 @@ class Netwatcher:
         # Publishers
         self.pub_uplink = rospy.Publisher(self.topic_uplink, String)
         self.pub_downlink = rospy.Publisher(self.topic_downlink, String)
-        self.pub_elapsed = rospy.Publisher(topic_wt_elapsed, Float)
+        self.pub_elapsed = rospy.Publisher(topic_wt_elapsed, Int32)
+        self.pub_remaining = rospy.Publisher(topic_wt_remaining, Int32)
 
         # Subscribe to the topics to start and stop the counting/logging
         rospy.Subscriber(self.topic_score, VRCScore, self.start_counting)
@@ -159,7 +170,7 @@ class Netwatcher:
         self.init_internal_log(log_level)
 
         # Publish ROS topics every second
-        self.pub_timer = rospy.Timer(1.0, self.publish_ros_topics)
+        self.pub_timer = rospy.Timer(rospy.Duration(1.0), self.publish_ros_topics)
 
         rospy.spin()
 
@@ -340,7 +351,7 @@ class Netwatcher:
         self.logger.info('New ROS messages published:\n'
                          '\t%s: %s\n' % (topic, remaining))
 
-    def publish_ros_topics(self):
+    def publish_ros_topics(self, data):
         with self.mutex:
             # Remaining bytes
             self.publish_remaining_bytes(self.inbound, self.max_uplink_key,
@@ -349,8 +360,13 @@ class Netwatcher:
                                          self.pub_downlink, self.topic_downlink)
 
             # Time elapsed since the beginning og the task
-            elapsed = time.time() - self.start_time
-            self.pub_elapsed.publish(float(elapsed))
+            now = rospy.Time.from_sec(time.time())
+            elapsed = now - self.start_time
+            self.pub_elapsed.publish(elapsed.secs)
+
+            # Time remaining since the beginning og the task
+            remaining = self.max_task_time - elapsed.secs
+            self.pub_remaining.publish(remaining)
 
     def update_counting(self, data):
         """
@@ -571,6 +587,14 @@ if __name__ == '__main__':
     parser.add_argument('-te', '--topic-wt-elapsed', metavar='ROSTOPIC',
                         default=DEFAULT_ELAPSED_TIME,
                         help='ROS topic showing the elapsed task wall time')
+    parser.add_argument('-tr', '--topic-wt-remaining', metavar='ROSTOPIC',
+                        default=DEFAULT_REMAINING_TIME,
+                        help='ROS topic showing the remaining task wall time')
+
+    # Tasks
+    parser.add_argument('-tt', '--max-task-time', metavar='SECONDS',
+                        default=DEFAULT_TASK_MAX_TIME,
+                        help='Max numbers of seconds to finish the task')
 
     # Byte accounting options
     parser.add_argument('-kmu', '--max-uplink-key',
@@ -618,6 +642,8 @@ if __name__ == '__main__':
     arg_rostopic_downlink = args.topic_downlink
     arg_rostopic_score = args.topic_score
     arg_rostopic_wt_elapsed = args.topic_wt_elapsed
+    arg_rostopic_wt_remaining = args.topic_wt_remaining
+    arg_max_task_time = args.max_task_time
     arg_max_uplink_key = args.max_uplink_key
     arg_max_downlink_key = args.max_downlink_key
     arg_current_uplink_key = args.current_uplink_key
@@ -631,6 +657,7 @@ if __name__ == '__main__':
                             arg_rostopic_start, arg_rostopic_stop,
                             arg_rostopic_uplink, arg_rostopic_downlink,
                             arg_rostopic_score, arg_rostopic_wt_elapsed,
+                            arg_rostopic_wt_remaining, arg_max_task_time,
                             arg_max_uplink_key, arg_max_downlink_key,
                             arg_current_uplink_key, arg_current_downlink_key,
                             arg_outage, arg_log)
