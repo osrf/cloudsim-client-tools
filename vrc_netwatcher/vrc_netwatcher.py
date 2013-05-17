@@ -408,16 +408,6 @@ class Netwatcher:
             self.logger.error('%s(): Exception captured:\n\t%s'
                               % ('update_counting()', excep))
 
-    def start_counting_wrapper(self, data):
-        """
-        Create a non zero fake Time argument and calls the start_counting()
-
-        @param data Not used but needs to match the rospy.Subscriber signature
-        """
-        fake_data = VRCScore()
-        fake_data.sim_time_elapsed = rospy.Time(1)
-        self.start_counting(fake_data)
-
     def start_counting(self, data):
         """
         Reset the network usage stats and starts counting/logging periodically.
@@ -426,9 +416,10 @@ class Netwatcher:
         """
         if data.sim_time_elapsed > rospy.Time(0):
 
-            self.logger.info('I heard the start signal')
             with self.mutex:
                 if not self.running:
+                    self.logger.info('I heard the start signal')
+
                     # Update filename
                     if self.mode == 'new':
                         timestamp = str(datetime.datetime.now())
