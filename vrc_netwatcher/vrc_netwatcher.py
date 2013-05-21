@@ -18,22 +18,23 @@ import redis
 import logging
 from multiprocessing import Lock
 
-#  ROS/Redis default topics/keys
+#  ROS default topics
 DEFAULT_START = 'vrc/state/start'
 DEFAULT_STOP = 'vrc/state/stop'
 DEFAULT_REMAINING_UPLINK = 'vrc/bytes/remaining/uplink'
 DEFAULT_REMAINING_DOWNLINK = 'vrc/bytes/remaining/downlink'
-DEFAULT_CURRENT_UPLINK = 'vrc/bytes/current/uplink'
-DEFAULT_CURRENT_DOWNLINK = 'vrc/bytes/current/downlink'
-DEFAULT_MAX_UPLINK = 'vrc/bytes/limit/uplink'
-DEFAULT_MAX_DOWNLINK = 'vrc/bytes/limit/downlink'
 DEFAULT_SCORE = '/vrc_score'
 DEFAULT_ELAPSED_TIME = 'vrc/seconds/wt_elapsed'
 DEFAULT_REMAINING_TIME = 'vrc/seconds/wt_remaining'
 
+# Redis default keys
+DEFAULT_CURRENT_UPLINK = 'vrc/bytes/current/uplink'
+DEFAULT_CURRENT_DOWNLINK = 'vrc/bytes/current/downlink'
+DEFAULT_MAX_UPLINK = 'vrc/bytes/limit/uplink'
+DEFAULT_MAX_DOWNLINK = 'vrc/bytes/limit/downlink'
+
 # Tasks
 DEFAULT_TASK_MAX_TIME = 1800
-
 
 # To check if netwatcher does a good job
 INTERNAL_LOG_FILE = '/tmp/vrc_netwatcher.log'
@@ -59,7 +60,7 @@ except ImportError:
     sys.exit(1)
 
 
-def stop_vrc_program():
+def stop_vrc_bytecounter():
     """
     Stop the network accounting program.
 
@@ -155,6 +156,7 @@ class Netwatcher:
         self.is_uplink_active = True
         self.is_downlink_active = True
 
+        # Create the empty network usage log file
         self.init_log_file()
 
         rospy.init_node('VRC_netwatcher', anonymous=True)
@@ -233,7 +235,7 @@ class Netwatcher:
 
         # vrc_bytecounter should be stopped but why not to be sure
         try:
-            stop_vrc_program()
+            stop_vrc_bytecounter()
             self.logger.warn('Reset_counting() vrc_bytecounter stopped.'
                              'It should not be running')
         except Exception, excep:
@@ -344,7 +346,7 @@ class Netwatcher:
         max_link = self.db.get(max_key)
         try:
             self.check_rediskey_long(max_key, max_link, 'publish_remaining_bytes()')
-        except Exception, excep:
+        except Exception:
             max_link = sys.maxint
 
         remaining = max(0, long(max_link) - long(current))
@@ -411,15 +413,14 @@ class Netwatcher:
                               % ('update_counting()', excep))
 
     def init_log_file(self):
-        # Update filename
+        # Update filename in "new" mode. Every log file has a unique suffix.
         if self.mode == 'new':
             timestamp = str(datetime.datetime.now())
             self.logfilename = (self.prefix + '-' +
-                                timestamp.replace(' ', '-') +
-                                '.log')
+                                timestamp.replace(' ', '-') + '.log')
         self.fullpathname = os.path.join(self.dir, self.logfilename)
 
-        # Create header unless mode is resume and file exists
+        # Create header unless mode is "resume" and file exists
         if ((self.mode == 'replace') or
            ((self.mode == 'resume') and
             (not os.path.exists(self.fullpathname))) or
@@ -450,7 +451,7 @@ class Netwatcher:
                     except Exception, excep:
                         self.logger.error('%s(): Exception captured:\n\t%s\n'
                                           'Exit because reset_counting() failed'
-                                          % (self.start_counting.__name__, excep))
+                                          % ('start_counting()', repr(excep)))
                         sys.exit(1)
                     period = rospy.Duration(1.0 / self.freq)
                     self.timer = rospy.Timer(period, self.update_counting)
@@ -475,9 +476,10 @@ class Netwatcher:
         except Exception, excep:
             self.logger.error('%s(): Exception captured:\n\t%s\n'
                               'Probably the iptables rule did not exist:\n %s'
-                              % ('resume_comms()', excep, outage_restore_cmd))
+                              % ('resume_comms()', repr(excep),
+                                 outage_restore_cmd))
 
-    def stop_counting(self, data):
+    '''def stop_counting(self, data):
         """
         Stop the current counting and logging session.
 
@@ -499,11 +501,11 @@ class Netwatcher:
 
                 # Stop the accounting
                 try:
-                    stop_vrc_program()
+                    stop_vrc_bytecounter()
                     self.logger.info('vrc_bytecounter stopped')
                 except Exception, excep:
                     self.logger.warn('%s() Unable to stop vrc_bytecounter: '
-                                     '%s' % ('stop_counting()', excep))
+                                     '%s' % ('stop_counting()', repr(excep)))
 
                 # Do not call anymore to update_counting()
                 self.timer.shutdown()
@@ -520,7 +522,7 @@ class Netwatcher:
         """
         # Write the score file
         with open(self.score_file, 'w') as scoref:
-            scoref.write(self.inbound + ' ' + self.outbound)
+            scoref.write(self.inbound + ' ' + self.outbound)'''
 
 
 def check_negative(value):
