@@ -141,6 +141,7 @@ def run_daemon(freq, typec, device, current_latency_label,
     while True:
         start_time = time.time()
         shaping.update()
+        sys.stdout.flush()
         elapsed_time = time.time() - start_time
         time.sleep(max(period - elapsed_time, 0))
 
@@ -176,7 +177,7 @@ if __name__ == "__main__":
                         default='ts_targetLatency',
                         help='redis key associated to the target measurement')
     parser.add_argument('-m', '--max', metavar='LATENCY',
-                        type=check_negative, default=500.0,
+                        type=check_negative, default=1000.0,
                         help='maximum injection value (ms.)')
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='show information of the controller status')

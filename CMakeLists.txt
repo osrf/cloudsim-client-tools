@@ -11,8 +11,8 @@ set(VERSION_FULL ${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION})
 
 message(STATUS "${PROJECT_NAME} version ${VERSION_FULL}")
 
-add_executable(hello hello.cc)
-install(TARGETS hello RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+# Install vrc_bytecounter for counting network usage over the network
+add_subdirectory(vrc_bytecounter)
 
 # Install vrc_wrapper.sh that allows to source conf files and run jobs
 install(PROGRAMS vrc_wrapper/vrc_wrapper.sh DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
@@ -25,6 +25,10 @@ install(PROGRAMS vrc_wrapper/vrc_wrapper.sh DESTINATION ${CMAKE_INSTALL_PREFIX}/
 install(PROGRAMS vrc_shaping/tc/vrc_init_tc.py vrc_shaping/tc/vrc_configure_tc.py DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 install(PROGRAMS vrc_shaping/tc/init_tc.py vrc_shaping/tc/configure_tc.py DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 install(PROGRAMS vrc_shaping/vrc_sniffer.py vrc_shaping/vrc_controller.py DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+
+# Install VRC bandwidth utilities:
+# VRC_netwatcher: Count and logging bandwidth when a specific start/stop ros topic is received
+install(PROGRAMS vrc_netwatcher/vrc_netwatcher.py vrc_netwatcher/stop_netwatcher DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 
 ########################################
 # Package Creation: 

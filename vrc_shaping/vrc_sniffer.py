@@ -13,6 +13,7 @@ import argparse
 import unittest
 
 UNREACHABLE = 99999
+MAX_PING_TIME_MS = 1500
 
 
 def get_ping_time(host, npackages):
@@ -24,7 +25,7 @@ def get_ping_time(host, npackages):
     @param npackages: number of packages sent on each measurement
     @type npackages: int
     """
-    cmd = 'fping {host} -C {npacket} -q'.format(host=host, npacket=npackages)
+    cmd = 'fping {host} -C {npacket} -q -t {maxping}'.format(host=host, npacket=npackages, maxping=MAX_PING_TIME_MS)
     try:
         output = str(subprocess.check_output(cmd.split(),
                                              stderr=subprocess.STDOUT))
