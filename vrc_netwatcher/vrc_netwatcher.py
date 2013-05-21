@@ -364,13 +364,13 @@ class Netwatcher:
                                          self.pub_downlink, self.topic_downlink)
 
             # Time elapsed since the beginning og the task
-            now = rospy.Time.from_sec(time.time())
-            elapsed = now - self.start_time
-            self.pub_elapsed.publish(elapsed.secs)
+            #now = rospy.Time.from_sec(time.time())
+            #elapsed = now - self.start_time
+            #self.pub_elapsed.publish(elapsed.secs)
 
             # Time remaining since the beginning og the task
-            remaining = self.max_task_time - elapsed.secs
-            self.pub_remaining.publish(remaining)
+            #remaining = self.max_task_time - elapsed.secs
+            #self.pub_remaining.publish(remaining)
 
     def update_counting(self, data):
         """
