@@ -141,8 +141,6 @@ class Netwatcher:
                                          '--src-range ' + INITIAL_IP_RANGE + '-' +
                                          END_IP_RANGE + ' -j DROP')
 
-        rospy.init_node('VRC_netwatcher', anonymous=True)
-
         # Default name of the file containing the log
         self.logfilename = self.prefix + '.log'
 
@@ -156,6 +154,10 @@ class Netwatcher:
         # Flags to know if the links are active
         self.is_uplink_active = True
         self.is_downlink_active = True
+
+        self.init_log_file()
+
+        rospy.init_node('VRC_netwatcher', anonymous=True)
 
         # Publishers
         self.pub_uplink = rospy.Publisher(self.topic_uplink, String)
@@ -408,6 +410,29 @@ class Netwatcher:
             self.logger.error('%s(): Exception captured:\n\t%s'
                               % ('update_counting()', excep))
 
+    def init_log_file(self):
+        # Update filename
+        if self.mode == 'new':
+            timestamp = str(datetime.datetime.now())
+            self.logfilename = (self.prefix + '-' +
+                                timestamp.replace(' ', '-') +
+                                '.log')
+        self.fullpathname = os.path.join(self.dir, self.logfilename)
+
+        # Create header unless mode is resume and file exists
+        if ((self.mode == 'replace') or
+           ((self.mode == 'resume') and
+            (not os.path.exists(self.fullpathname))) or
+           (self.mode == 'new')):
+            with open(self.fullpathname, 'w') as logf:
+                header = ('# This is a log of network usage,\n'
+                          '# including time stamps and a\n'
+                          '# summation of inbound and\n'
+                          '# outbound bytes of usage.\n'
+                          '# Router_time /clock inBytes outBytes\n'
+                          '0 0 0 0\n')
+                logf.write(header)
+
     def start_counting(self, data):
         """
         Reset the network usage stats and starts counting/logging periodically.
@@ -420,26 +445,6 @@ class Netwatcher:
                 if not self.running:
                     self.logger.info('I heard the start signal')
 
-                    # Update filename
-                    if self.mode == 'new':
-                        timestamp = str(datetime.datetime.now())
-                        self.logfilename = (self.prefix + '-' +
-                                            timestamp.replace(' ', '-') +
-                                            '.log')
-                    self.fullpathname = os.path.join(self.dir, self.logfilename)
-
-                    # Create header unless mode is resume and file exists
-                    if ((self.mode == 'replace') or
-                       ((self.mode == 'resume') and
-                        (not os.path.exists(self.fullpathname))) or
-                       (self.mode == 'new')):
-                        with open(self.fullpathname, 'w') as logf:
-                            header = ('# This is a log of network usage,\n'
-                                      '# including time stamps and a\n'
-                                      '# summation of inbound and\n'
-                                      '# outbound bytes of usage.\n'
-                                      '# Router_time /clock inBytes outBytes\n')
-                            logf.write(header)
                     try:
                         self.reset_counting()
                     except Exception, excep:
