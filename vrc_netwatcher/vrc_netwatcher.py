@@ -292,6 +292,19 @@ class Netwatcher:
             self.logger.debug('New line written in %s:\n\t%s'
                               % (self.fullpathname, new_line))
 
+    def get_max_link_limit(self, max_key, infunct):
+        max_link = sys.maxint
+        try:
+            if self.db.exists(max_key):
+                self.check_rediskey_long(max_key, self.db.get(max_key), infunct)
+                max_link = long(self.db.get(max_key))
+                if max_link <= 0:
+                    max_link = sys.maxint
+        except Exception:
+            max_link = sys.maxint
+
+        return max_link
+
     def is_limit_reached(self, label, current, max_key, is_active, outage_rule):
         """
         Check if the allocated inbound/outbound bytes have been reached the
@@ -307,11 +320,7 @@ class Netwatcher:
         @raise TypeError If db[max_key] is not a long
         """
         # Get the maximum bytes allowed
-        max_link = self.db.get(max_key)
-        try:
-            self.check_rediskey_long(max_key, max_link, 'is_limit_reached()')
-        except Exception, excep:
-            max_link = sys.maxint
+        max_link = self.get_max_link_limit(max_key, 'is_limit_reached()')
 
         self.logger.debug('is_limit_reached():\n'
                           '\t%s: %s / %s\n' % (label, current, max_link))
@@ -343,11 +352,7 @@ class Netwatcher:
         @raise TypeError If db[max_key] is not long
         """
         # Get the maximum bytes allowed
-        max_link = self.db.get(max_key)
-        try:
-            self.check_rediskey_long(max_key, max_link, 'publish_remaining_bytes()')
-        except Exception:
-            max_link = sys.maxint
+        max_link = self.get_max_link_limit(max_key, 'publish_remaining_bytes()')
 
         remaining = max(0, long(max_link) - long(current))
 
