@@ -30,6 +30,10 @@ install(PROGRAMS vrc_shaping/vrc_sniffer.py vrc_shaping/vrc_controller.py DESTIN
 # VRC_netwatcher: Count and logging bandwidth when a specific start/stop ros topic is received
 install(PROGRAMS vrc_netwatcher/vrc_netwatcher.py DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 
+# Helper script to locally cache gazebo_models and to check out vrc_arenas
+# (needs appropriate ssh key)
+install(PROGRAMS tools/set_vrc_private.sh DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+
 ########################################
 # Package Creation: 
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Infrastructure for launching robotics simulations in the cloud")
