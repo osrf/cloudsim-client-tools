@@ -12,7 +12,7 @@ import time
 import socket
 
 
-DEFAULT_EMAILS = ['caguero@osrfoundation.org', 'hugo@osrfoundation.org', 'brian@osrfoundation.org']
+DEFAULT_EMAILS = ['drcsim-support@osrfoundation.org']
 MAX_PING_TIME_MS = 1500
 INTERNAL_LOG_FILE = '/tmp/vrc_monitor.log'
 FALLBACK_LOG_FILE = '~/vrc_monitor.log'
@@ -77,7 +77,8 @@ class Monitor:
         @param text: email's body message
         '''
 
-        content = 'Subject: %s\n\n%s' % (subject, text)
+        content = ('From: %s\r\nTo: %s\r\nSubject: %s\n\n%s'
+                   % (fromaddr, ", ".join(toaddr_list), subject, text))
 
         server = smtplib.SMTP('localhost')
         server.set_debuglevel(1)
