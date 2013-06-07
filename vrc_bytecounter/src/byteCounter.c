@@ -139,9 +139,6 @@ void count_bits(u_char *args, const struct pcap_pkthdr *header,
     totalPackets++;
     totalLength += header->len;
 
-    /* Get ethernet header size */
-    total_header_length += SIZE_ETHERNET;
-
     /* Get IP header size */
     ip = (struct ip_header*) (packet + SIZE_ETHERNET);
     size_ip = IP_HL(ip) * 4;
@@ -228,13 +225,18 @@ void count_bits(u_char *args, const struct pcap_pkthdr *header,
      */
     total_header_length += protocol_header_length;
 
+    // get ip header and change  endianness (works for little endian only!)
+    int ip_len = ((ip->ip_len & 0x00FF) << 8) | ((ip->ip_len & 0xFF00)>> 8);
+    
+    printf("ip_len: %d", ip_len);
+
     if (uploading)
     {
-        totalPacketsUploaded += (header->len - total_header_length);
+        totalPacketsUploaded += (ip_len - total_header_length);
     }
     else
     {
-        totalPacketsDownloaded += (header->len - total_header_length);
+        totalPacketsDownloaded += (ip_len - total_header_length);
     }
     
     /* Update Redis */
