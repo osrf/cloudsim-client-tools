@@ -5,8 +5,7 @@
 USAGE="Usage: set_vrc_private.sh <bitbucket_key>"
 
 if [ $# -ne 1 ]; then
-  echo $USAGE
-  exit 1
+  echo "No key provided"
 fi
 
 # Constants
@@ -26,7 +25,11 @@ install ()
     cd $TMP_DIR
    
     echo -n "Downloading $1..."
-    hg clone -e "ssh -o StrictHostKeyChecking=no -i $3" ssh://hg@bitbucket.org/osrf/$1
+    if [ -z "$3" ]; then
+      hg clone https://bitbucket.org/osrf/$1
+    else
+      hg clone -e "ssh -o StrictHostKeyChecking=no -i $3" ssh://hg@bitbucket.org/osrf/$1
+    fi
     echo "Done"
     cd $1
     mkdir build
@@ -44,7 +47,7 @@ install ()
 KEY=$1
 
 # gazebo_models
-install $GAZEBO_MODELS_NAME $GAZEBO_INSTALL_DIR $KEY
+install $GAZEBO_MODELS_NAME $GAZEBO_INSTALL_DIR
 
 # vrc_arenas
 install $VRC_ARENAS_NAME $VRC_ARENA_INSTALL_DIR $KEY
