@@ -50,7 +50,9 @@ KEY=$1
 install $GAZEBO_MODELS_NAME $GAZEBO_INSTALL_DIR
 
 # vrc_arenas
-install $VRC_ARENAS_NAME $VRC_ARENA_INSTALL_DIR $KEY
+if [ -n "$KEY" ]; then
+  install $VRC_ARENAS_NAME $VRC_ARENA_INSTALL_DIR $KEY
+fi
 
 # Add private vrc_arenas setup.sh to the drcsim setup.sh if possible
 #echo -e "\nReady. Do not forget to source the new VRC Arena:"
