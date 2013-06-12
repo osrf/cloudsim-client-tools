@@ -251,6 +251,25 @@ class Netwatcher:
                               ': %s' % (excep))
             raise
 
+        # Start the latency injection
+        cmd = 'sudo start vrc_controller_private'
+        try:
+            subprocess.check_call(cmd.split())
+            self.logger.debug('Reset_counting() vrc_controller_private started')
+        except Exception, excep:
+            self.logger.error('Reset_counting() Unable to start vrc_controller_private'
+                              ': %s' % (excep))
+            raise
+
+        cmd = 'sudo start vrc_controller_public'
+        try:
+            subprocess.check_call(cmd.split())
+            self.logger.debug('Reset_counting() vrc_controller_public started')
+        except Exception, excep:
+            self.logger.error('Reset_counting() Unable to start vrc_controller_public'
+                              ': %s' % (excep))
+            raise
+
     def check_rediskey_long(self, key, value, inside_function):
         """
         Checks that a (key, value) from redis exists and it's long.
