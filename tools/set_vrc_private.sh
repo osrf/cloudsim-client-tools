@@ -47,7 +47,7 @@ install ()
 KEY=$1
 
 # gazebo_models
-install $GAZEBO_MODELS_NAME $GAZEBO_INSTALL_DIR
+#install $GAZEBO_MODELS_NAME $GAZEBO_INSTALL_DIR
 
 # vrc_arenas
 if [ -n "$KEY" ]; then

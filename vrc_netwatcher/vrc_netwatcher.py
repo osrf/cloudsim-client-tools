@@ -124,7 +124,7 @@ class Netwatcher:
 
         # Wall clockwatch
         self.start_time = rospy.Time.from_sec(time.time())
-
+        self.sim_time = 0
         self.inbound = 0
         self.outbound = 0
 
@@ -303,7 +303,8 @@ class Netwatcher:
         """
         with open(self.fullpathname, 'a') as logf:
             tstamp = str(time.time())
-            simclock = str(rospy.get_time())
+            #simclock = str(rospy.get_time())
+            simclock = str(self.sim_time.secs) + '.' + str(self.sim_time.nsecs / 1000000)
             new_line = (tstamp + ' ' + simclock + ' ' + self.inbound +
                         ' ' + self.outbound + '\n')
             logf.write(new_line)
@@ -464,22 +465,28 @@ class Netwatcher:
 
         @param data VRCScore type with the current score
         """
-        if data.sim_time_elapsed > rospy.Time(0):
+        try:
+            self.sim_time = data.sim_time
+            if data.sim_time_elapsed > rospy.Time(0):
 
-            with self.mutex:
-                if not self.running:
-                    self.logger.info('I heard the start signal')
+                with self.mutex:
+                    if not self.running:
+                        self.logger.info('I heard the start signal')
 
-                    try:
-                        self.reset_counting()
-                    except Exception, excep:
-                        self.logger.error('%s(): Exception captured:\n\t%s\n'
-                                          'Exit because reset_counting() failed'
-                                          % ('start_counting()', repr(excep)))
-                        sys.exit(1)
-                    period = rospy.Duration(1.0 / self.freq)
-                    self.timer = rospy.Timer(period, self.update_counting)
-                    self.running = True
+                        try:
+                            self.reset_counting()
+                        except Exception, excep:
+                            self.logger.error('%s(): Exception captured:\n\t%s\n'
+                                              'Exit because reset_counting() failed'
+                                              % ('start_counting()', repr(excep)))
+                            sys.exit(1)
+                        period = rospy.Duration(1.0 / self.freq)
+                        self.timer = rospy.Timer(period, self.update_counting)
+                        self.running = True
+        except Exception, excep:
+            self.logger.error('%s(): Exception captured:\n\t%s\n'
+                              'Exit because reset_counting() failed'
+                              % ('start_counting()', repr(excep)))
 
     def resume_comms(self, label, is_active, outage_restore_cmd):
         """
